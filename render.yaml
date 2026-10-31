@@ -1,0 +1,30 @@
+# Render Blueprint for the DIY Wikipedia web service.
+# Spec: https://render.com/docs/blueprint-spec  (checked 2026-10-31)
+# ASSUMPTION: Node/TypeScript stack. Replace the commands below once the stack is fixed.
+# Place this file at the repo root as render.yaml.
+services:
+  - type: web
+    name: diy-wikipedia
+    runtime: node            # native runtime, per spec "runtime" field
+    plan: free               # change if the free plan's spin-down hurts the demo
+    buildCommand: npm install && npm run build   # PLACEHOLDER
+    startCommand: npm start                      # PLACEHOLDER
+    healthCheckPath: /healthz                    # PLACEHOLDER: app must serve this
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: "20"                              # PLACEHOLDER: match local Node
+      - key: PAYPAL_ENV
+        value: sandbox
+      # Secrets: sync:false means Render prompts for the value on first Blueprint
+      # creation only; later changes are made in the dashboard (see spec).
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: CHANNEL3_API_KEY
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: AG_GRID_LICENSE_KEY
+        sync: false
