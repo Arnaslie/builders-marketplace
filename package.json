@@ -1,0 +1,23 @@
+{
+  "name": "builders-marketplace",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=20 <21"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0"
+  },
+  "dependencies": {
+    "next": "15.5.28",
+    "react": "19.1.10",
+    "react-dom": "19.1.10",
+    "typescript": "5.9.3",
+    "@types/node": "20.19.43",
+    "@types/react": "19.1.17",
+    "@types/react-dom": "19.1.11"
+  }
+}

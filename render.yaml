@@ -1,19 +1,18 @@
 # Render Blueprint for the DIY Wikipedia web service.
 # Spec: https://render.com/docs/blueprint-spec  (checked 2026-10-31)
-# ASSUMPTION: Node/TypeScript stack. Replace the commands below once the stack is fixed.
-# Place this file at the repo root as render.yaml.
+# Stack: Next.js (App Router) on Node 20. Commands match package.json scripts.
 services:
   - type: web
     name: diy-wikipedia
     runtime: node            # native runtime, per spec "runtime" field
     plan: free               # change if the free plan's spin-down hurts the demo
-    buildCommand: npm install && npm run build   # PLACEHOLDER
-    startCommand: npm start                      # PLACEHOLDER
-    healthCheckPath: /healthz                    # PLACEHOLDER: app must serve this
+    buildCommand: npm ci && npm run build        # npm ci installs exactly what package-lock.json pins
+    startCommand: npm start                      # next start -H 0.0.0.0, reads $PORT
+    healthCheckPath: /healthz                    # served by app/healthz/route.ts
     autoDeployTrigger: commit
     envVars:
       - key: NODE_VERSION
-        value: "20"                              # PLACEHOLDER: match local Node
+        value: "20"                              # matches package.json engines.node
       - key: PAYPAL_ENV
         value: sandbox
       # Secrets: sync:false means Render prompts for the value on first Blueprint
