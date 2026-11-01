@@ -1,1 +1,606 @@
-/* Proposal 2: Off the Grid. Every rule is scoped under .listing--offgrid. */
+/* Proposal 2: Off the Grid. Every rule is scoped under .listing--offgrid, with ONE exception:
+   the site header lives outside <main>, so it is themed with body:has(main.listing--offgrid).
+   A field journal kept in a cabin with no mains power: kraft paper, ruled notes, earth tones,
+   taped-on prints and twine. Decoration is CSS-only (gradients, pseudo-elements and inline
+   data-URI SVG), so nothing is fetched and nothing reaches the accessibility tree. */
+
+.listing--offgrid {
+  /* Palette. Text pairs were picked for WCAG AA: ink, pencil, moss and rust on paper (all above 6:1). */
+  --og-kraft: #c9a877;
+  --og-kraft-dark: #b8945f;
+  --og-paper: #f6eedb;
+  --og-ink: #2b2418;
+  --og-pencil: #574c39;
+  --og-pine: #233a24;
+  --og-moss: #3f5b2e;
+  --og-clay: #a4623d;
+  --og-rust: #8a3b1d;
+  --og-rule: rgba(63, 91, 46, 0.22);
+  --og-twine: repeating-linear-gradient(160deg, #7d5a32 0 3px, #d8bf8f 3px 6px);
+  /* One ruled-line pitch. Every text line in .journal-text uses it as its line-height, so text sits on the rules. */
+  --og-line: 1.6rem;
+  --og-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --og-hand: "Bradley Hand", "Segoe Print", "Chalkboard SE", "Comic Sans MS", var(--og-serif);
+
+  display: block;
+  min-height: 100vh;
+  color: var(--og-ink);
+  font-family: var(--og-serif);
+  /* Full-bleed kraft: faint topographic contours over speckled brown paper. */
+  background-color: var(--og-kraft);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='640' fill='none' stroke='%235b4526' stroke-opacity='0.16' stroke-width='1.4'%3E%3Cg transform='rotate(-18 190 210)'%3E%3Cellipse cx='190' cy='210' rx='34' ry='22'/%3E%3Cellipse cx='192' cy='212' rx='70' ry='46'/%3E%3Cellipse cx='196' cy='214' rx='108' ry='72'/%3E%3Cellipse cx='200' cy='218' rx='150' ry='100'/%3E%3Cellipse cx='206' cy='222' rx='196' ry='134'/%3E%3C/g%3E%3Cg transform='rotate(24 480 470)'%3E%3Cellipse cx='480' cy='470' rx='28' ry='40'/%3E%3Cellipse cx='478' cy='468' rx='60' ry='82'/%3E%3Cellipse cx='474' cy='464' rx='96' ry='126'/%3E%3Cellipse cx='470' cy='460' rx='136' ry='174'/%3E%3C/g%3E%3C/svg%3E"),
+    radial-gradient(rgba(91, 69, 38, 0.12) 1px, transparent 1.5px),
+    linear-gradient(160deg, var(--og-kraft) 0%, var(--og-kraft-dark) 100%);
+  background-size:
+    640px 640px,
+    7px 7px,
+    100% 100%;
+}
+
+.listing--offgrid .container {
+  padding-bottom: var(--space-6);
+}
+
+/* Shared focus ring: a rust outline reads on both kraft and paper (above 3:1 on each). */
+.listing--offgrid a:focus-visible {
+  outline: 3px solid var(--og-rust);
+  outline-offset: 3px;
+}
+
+/* ---------- Site header (the one allowed exception to the scope rule) ----------
+   Only colour and type change here; the wrap/row mechanics stay in globals.css.
+   Palette values are repeated because the --og-* variables live on <main>, not on the header. */
+
+body:has(main.listing--offgrid) .site-header {
+  background-color: #233a24;
+  background-image: radial-gradient(rgba(246, 238, 219, 0.06) 1px, transparent 1.5px);
+  background-size: 6px 6px;
+  border-bottom: 3px dashed #c9a877;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+}
+
+body:has(main.listing--offgrid) .site-nav a {
+  color: #f6eedb; /* 10.7:1 on pine */
+  text-decoration-color: rgba(246, 238, 219, 0.5);
+  text-underline-offset: 3px;
+}
+
+body:has(main.listing--offgrid) .site-nav a:hover {
+  text-decoration-color: #c9a877;
+}
+
+body:has(main.listing--offgrid) .site-nav .brand {
+  font-style: italic;
+  letter-spacing: 0.01em;
+}
+
+body:has(main.listing--offgrid) .site-nav a:focus-visible {
+  outline: 3px solid #f6eedb;
+  outline-offset: 3px;
+}
+
+/* ---------- Header: a label pasted inside the journal cover ---------- */
+
+.listing--offgrid .listing-header {
+  position: relative;
+  padding: var(--space-5) 7rem var(--space-3) 0;
+  margin-bottom: var(--space-5);
+  border-bottom: 2px dashed rgba(43, 36, 24, 0.45);
+}
+
+/* Compass rose, drawn inline so no image is downloaded. */
+.listing--offgrid .listing-header::after {
+  content: "";
+  position: absolute;
+  top: var(--space-4);
+  right: 0;
+  width: 6rem;
+  height: 6rem;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='none' stroke='%232b2418' stroke-width='1.3'%3E%3Ccircle cx='50' cy='50' r='44' stroke-dasharray='3 3'/%3E%3Ccircle cx='50' cy='50' r='36'/%3E%3Cpath d='M50 8 L57 50 L50 92 L43 50 Z' fill='%23233a24' fill-opacity='0.85'/%3E%3Cpath d='M8 50 L50 43 L92 50 L50 57 Z' fill='%23a4623d' fill-opacity='0.75'/%3E%3Cpath d='M22 22 L78 78 M78 22 L22 78' stroke-width='0.8'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  transform: rotate(-8deg);
+  opacity: 0.8;
+}
+
+.listing--offgrid h1 {
+  margin: 0 0 var(--space-3);
+  font-family: var(--og-serif);
+  font-size: clamp(2.25rem, 7vw, 3.5rem);
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: -0.01em;
+  color: var(--og-pine);
+}
+
+.listing--offgrid .lede {
+  max-width: 36rem;
+  margin: 0 0 var(--space-5);
+  color: var(--og-ink);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+/* ---------- View switcher: stitched cloth tags ---------- */
+
+.listing--offgrid .view-switcher {
+  font-family: var(--og-serif);
+}
+
+.listing--offgrid .view-switcher-label {
+  color: var(--og-ink);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.listing--offgrid .view-switcher a {
+  border: 2px dashed var(--og-moss);
+  border-radius: 3px;
+  background: var(--og-paper);
+  color: var(--og-pine);
+}
+
+.listing--offgrid .view-switcher a:hover {
+  background: #fffaf0;
+}
+
+.listing--offgrid .view-switcher a[aria-current="page"] {
+  border-style: solid;
+  border-color: var(--og-pine);
+  background: var(--og-pine);
+  color: var(--og-paper);
+}
+
+/* ---------- The journal ---------- */
+
+/* Default (phones and mid widths): one column of entries, centred. The staggered two-column
+   trail only switches on from 64rem, where each column is wide enough for photo + text. */
+.listing--offgrid .journal {
+  position: relative;
+  display: grid;
+  gap: var(--space-5);
+  margin: 0;
+  padding: var(--space-4) 0;
+  list-style: none;
+}
+
+.listing--offgrid .journal-item {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 46rem);
+  justify-self: center;
+}
+
+/* One journal page: paper, a clay margin line and a soft shadow. No outline or stitching, so the
+   ruled notes and the taped print are the only lines that compete for attention. */
+.listing--offgrid .journal-entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+  grid-template-areas:
+    "photo number"
+    "photo text";
+  column-gap: var(--space-5);
+  row-gap: 0;
+  align-items: start;
+  padding: var(--space-5) var(--space-5) var(--space-5) 3.25rem;
+  color: var(--og-ink);
+  text-decoration: none;
+  background-color: var(--og-paper);
+  background-image: linear-gradient(90deg, transparent 2.25rem, rgba(164, 98, 61, 0.45) 2.25rem, rgba(164, 98, 61, 0.45) calc(2.25rem + 1px), transparent calc(2.25rem + 1px));
+  border-radius: 2px 6px 6px 2px;
+  box-shadow:
+    0 1px 0 rgba(43, 36, 24, 0.12),
+    0 10px 22px -12px rgba(43, 36, 24, 0.55);
+  transform: rotate(-0.4deg);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.listing--offgrid .journal-item:nth-child(even) .journal-entry {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 14rem);
+  grid-template-areas:
+    "number photo"
+    "text photo";
+  transform: rotate(0.35deg);
+}
+
+.listing--offgrid .journal-entry:hover {
+  transform: rotate(0deg) translateY(-3px);
+  box-shadow:
+    0 1px 0 rgba(43, 36, 24, 0.12),
+    0 16px 28px -12px rgba(43, 36, 24, 0.6);
+}
+
+/* Pencil note: the entry number with a hand-drawn underline swoosh. */
+.listing--offgrid .journal-number {
+  grid-area: number;
+  position: relative;
+  z-index: 1;
+  justify-self: start;
+  margin: 0;
+  padding-bottom: 0.35rem;
+  font-family: var(--og-hand);
+  font-size: 1rem;
+  line-height: 1.25rem;
+  color: var(--og-pencil);
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none' fill='none' stroke='%23574c39' stroke-opacity='0.6' stroke-width='1.4' stroke-linecap='round'%3E%3Cpath d='M2 5 C 30 2, 60 7, 90 3 S 112 4, 118 2'/%3E%3C/svg%3E")
+    left bottom / 100% 0.4rem no-repeat;
+  transform: rotate(-1.5deg);
+  transform-origin: left center;
+}
+
+/* Taped-on print: tilted by --tilt with one strip of masking tape across the top centre.
+   One tape system for every entry; the tape stays inside the print's width, so never past the card edge. */
+.listing--offgrid .journal-photo {
+  grid-area: photo;
+  position: relative;
+  z-index: 1;
+  padding: 0.5rem 0.5rem 1.25rem;
+  background: #fffaf0;
+  box-shadow: 0 6px 14px -6px rgba(43, 36, 24, 0.55);
+  transform: rotate(var(--tilt, -1deg));
+  transition: transform 180ms ease;
+}
+
+.listing--offgrid .journal-photo::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: -0.7rem;
+  left: 50%;
+  width: min(5rem, 60%);
+  height: 1.5rem;
+  background: rgba(226, 206, 160, 0.82);
+  border-left: 1px dashed rgba(91, 69, 38, 0.25);
+  border-right: 1px dashed rgba(91, 69, 38, 0.25);
+  box-shadow: 0 1px 2px rgba(43, 36, 24, 0.2);
+  /* Counter-rotate against the print's tilt so the tape never looks machine-aligned with it. */
+  transform: translateX(-50%) rotate(calc(var(--tilt, -1deg) * -2.5));
+}
+
+.listing--offgrid .journal-entry:hover .journal-photo {
+  transform: rotate(0deg);
+}
+
+.listing--offgrid .journal-photo .thumb,
+.listing--offgrid .journal-photo .thumb-placeholder {
+  display: block;
+  width: 100%;
+}
+
+/* Placeholder print: pencil cross-hatching with the initial written in. */
+.listing--offgrid .journal-photo .thumb-placeholder {
+  display: flex;
+  background-color: #efe4c9;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(87, 76, 57, 0.12) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(-45deg, rgba(87, 76, 57, 0.08) 0 1px, transparent 1px 9px);
+  color: var(--og-moss);
+  font-family: var(--og-serif);
+  font-style: italic;
+  font-size: 3rem;
+  font-weight: 700;
+}
+
+/* The ruled note. Rules are drawn on this block only, starting at its own top edge, and every
+   line inside uses line-height var(--og-line) with no fractional margins, so each baseline sits
+   just above a rule no matter how tall the print beside it is. */
+.listing--offgrid .journal-text {
+  grid-area: text;
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  margin-top: var(--space-2);
+  background-image: repeating-linear-gradient(
+    180deg,
+    transparent 0,
+    transparent calc(var(--og-line) - 1px),
+    var(--og-rule) calc(var(--og-line) - 1px),
+    var(--og-rule) var(--og-line)
+  );
+}
+
+.listing--offgrid .journal-text h2 {
+  margin: 0;
+  font-family: var(--og-serif);
+  font-size: 1.35rem;
+  line-height: var(--og-line);
+  color: var(--og-pine);
+}
+
+.listing--offgrid .journal-entry:hover h2 {
+  text-decoration: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: var(--og-clay);
+  text-underline-offset: 4px;
+}
+
+.listing--offgrid .journal-summary {
+  margin: 0;
+  font-size: 1rem;
+  line-height: var(--og-line);
+  color: var(--og-ink);
+}
+
+/* Supplies: the label on its own ruled line, the details on the line(s) below.
+   One blank ruled line above keeps it apart from the summary without an extra border. */
+.listing--offgrid .journal-supplies {
+  margin-top: var(--og-line);
+  font-size: 0.875rem; /* 14px; pencil on paper is 7.3:1 */
+  line-height: var(--og-line);
+  color: var(--og-pencil);
+}
+
+.listing--offgrid .journal-supplies-label {
+  margin: 0;
+  font-size: 0.8125rem; /* 13px; moss on paper is 6.6:1 */
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--og-moss);
+}
+
+.listing--offgrid .journal-supplies ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listing--offgrid .journal-supplies li + li::before {
+  content: "\00b7";
+  margin: 0 0.45em;
+  color: var(--og-clay);
+}
+
+/* Mock-data marker: a rubber stamp slammed across the page's top-right corner (over the print on
+   right-hand pages). Rust on half-opaque paper stays above 6:1 over the print. */
+.listing--offgrid .journal-stamp {
+  position: absolute;
+  z-index: 3;
+  top: 0.85rem;
+  right: 0.9rem;
+  padding: 0.1rem 0.55rem;
+  border: 3px double var(--og-rust);
+  border-radius: 4px;
+  background: rgba(246, 238, 219, 0.7);
+  color: var(--og-rust);
+  font-family: var(--og-serif);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 0 1px rgba(138, 59, 29, 0.15);
+  transform: rotate(9deg);
+  pointer-events: none;
+}
+
+/* ---------- Hand-made touches (decoration only, all pseudo-elements) ---------- */
+
+/* A coffee ring on every fourth page, under the text layer. */
+.listing--offgrid .journal-item:nth-child(4n + 2) .journal-entry::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 0.4rem;
+  left: 0.4rem;
+  width: 4.75rem;
+  height: 4.75rem;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    transparent 56%,
+    rgba(111, 72, 35, 0.2) 58%,
+    rgba(111, 72, 35, 0.1) 63%,
+    rgba(111, 72, 35, 0.22) 67%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+/* A pressed fern leaf tucked into the margin of every fourth page. */
+.listing--offgrid .journal-item:nth-child(4n + 3) .journal-entry::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 0.3rem;
+  bottom: 1rem;
+  width: 1.7rem;
+  height: 3.6rem;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 44' fill='%233f5b2e' fill-opacity='0.55' stroke='%23233a24' stroke-opacity='0.5' stroke-width='0.6'%3E%3Cpath d='M10 43 L10 3' fill='none'/%3E%3Cpath d='M10 36 C 4 35, 2 32, 1 29 C 5 30, 8 32, 10 34 Z'/%3E%3Cpath d='M10 36 C 16 35, 18 32, 19 29 C 15 30, 12 32, 10 34 Z'/%3E%3Cpath d='M10 28 C 4 27, 3 24, 2 21 C 6 22, 8 24, 10 26 Z'/%3E%3Cpath d='M10 28 C 16 27, 17 24, 18 21 C 14 22, 12 24, 10 26 Z'/%3E%3Cpath d='M10 20 C 5 19, 4 16, 3 13 C 7 14, 9 16, 10 18 Z'/%3E%3Cpath d='M10 20 C 15 19, 16 16, 17 13 C 13 14, 11 16, 10 18 Z'/%3E%3Cpath d='M10 12 C 7 11, 6 8, 6 5 C 8 6, 10 8, 10 10 Z'/%3E%3Cpath d='M10 12 C 13 11, 14 8, 14 5 C 12 6, 10 8, 10 10 Z'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  transform: rotate(-10deg);
+  pointer-events: none;
+}
+
+/* ---------- Pagination: page tabs along the journal's edge ---------- */
+
+.listing--offgrid .pagination {
+  font-family: var(--og-serif);
+}
+
+.listing--offgrid .pagination-status {
+  color: var(--og-ink);
+  font-style: italic;
+  font-size: var(--text-base);
+}
+
+.listing--offgrid .pagination-page,
+.listing--offgrid .pagination-step {
+  border: 2px dashed var(--og-moss);
+  border-radius: 3px;
+  background: var(--og-paper);
+  color: var(--og-pine);
+}
+
+.listing--offgrid a.pagination-page:hover,
+.listing--offgrid a.pagination-step:hover {
+  background: #fffaf0;
+}
+
+.listing--offgrid .pagination-page[aria-current="page"] {
+  border-style: solid;
+  border-color: var(--og-pine);
+  background: var(--og-pine);
+  color: var(--og-paper);
+}
+
+/* Disabled steps: drop the global 0.5 opacity, which would push the text below AA on kraft. */
+.listing--offgrid .pagination-step[aria-disabled="true"] {
+  opacity: 1;
+  border-color: rgba(63, 91, 46, 0.4);
+  background: rgba(246, 238, 219, 0.55);
+  color: var(--og-pencil);
+}
+
+/* ---------- Wide screens: two staggered columns hung off a twine trail ---------- */
+
+@media (min-width: 64rem) {
+  /* Columns: left pages | trail | right pages. Each entry spans two grid rows and starts one row
+     after the previous entry, so it begins roughly halfway down its neighbour. Two entries on the
+     same side are two rows apart, so they can never collide whatever their heights. */
+  .listing--offgrid .journal {
+    grid-template-columns: minmax(0, 1fr) 4rem minmax(0, 1fr);
+    column-gap: 0;
+    row-gap: var(--space-3);
+    align-items: start;
+  }
+
+  /* The trail: a twisted twine line running down the gutter. */
+  .listing--offgrid .journal::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    top: var(--space-5);
+    bottom: var(--space-6);
+    left: 50%;
+    width: 4px;
+    background: var(--og-twine);
+    border-radius: 2px;
+    box-shadow: 0 1px 2px rgba(43, 36, 24, 0.25);
+    transform: translateX(-50%);
+  }
+
+  .listing--offgrid .journal-item {
+    width: auto;
+    justify-self: stretch;
+    grid-column: 1;
+    grid-row: var(--row) / span 2;
+  }
+
+  .listing--offgrid .journal-item:nth-child(even) {
+    grid-column: 3;
+  }
+
+  /* Narrower print so photo + text both fit in half the page. */
+  .listing--offgrid .journal-entry {
+    grid-template-columns: minmax(0, 10rem) minmax(0, 1fr);
+  }
+
+  .listing--offgrid .journal-item:nth-child(even) .journal-entry {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 10rem);
+  }
+
+  /* Each entry ties onto the trail: a short twine branch from the card edge to a brass tack. */
+  .listing--offgrid .journal-item::before,
+  .listing--offgrid .journal-item::after {
+    content: "";
+    position: absolute;
+    top: 2.4rem;
+  }
+
+  .listing--offgrid .journal-item::before {
+    right: -2rem;
+    width: 2rem;
+    height: 3px;
+    margin-top: -1.5px;
+    background: repeating-linear-gradient(70deg, #7d5a32 0 3px, #d8bf8f 3px 6px);
+  }
+
+  .listing--offgrid .journal-item::after {
+    right: calc(-2rem - 0.6rem);
+    width: 1.2rem;
+    height: 1.2rem;
+    margin-top: -0.6rem;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #f3d9a0 0 15%, #b8862f 45%, #6e4b17 100%);
+    box-shadow: 0 1px 2px rgba(43, 36, 24, 0.45);
+  }
+
+  .listing--offgrid .journal-item:nth-child(even)::before {
+    right: auto;
+    left: -2rem;
+  }
+
+  .listing--offgrid .journal-item:nth-child(even)::after {
+    right: auto;
+    left: calc(-2rem - 0.6rem);
+  }
+}
+
+/* ---------- Narrow screens: one column, photo above the text ---------- */
+
+@media (max-width: 44rem) {
+  .listing--offgrid .journal-entry,
+  .listing--offgrid .journal-item:nth-child(even) .journal-entry {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "number"
+      "photo"
+      "text";
+    row-gap: var(--space-3);
+  }
+
+  .listing--offgrid .journal-photo {
+    justify-self: center;
+    width: min(100%, 18rem);
+  }
+}
+
+@media (max-width: 30rem) {
+  /* No compass on phones: it crowded the title. The header gets its full width back. */
+  .listing--offgrid .listing-header {
+    padding-right: 0;
+  }
+
+  .listing--offgrid .listing-header::after {
+    display: none;
+  }
+
+  /* Pull the margin line in so the text keeps its width on a 360px phone. */
+  .listing--offgrid .journal-entry,
+  .listing--offgrid .journal-item:nth-child(even) .journal-entry {
+    padding: var(--space-5) var(--space-4) var(--space-4) 2.25rem;
+    background-image: linear-gradient(90deg, transparent 1.4rem, rgba(164, 98, 61, 0.45) 1.4rem, rgba(164, 98, 61, 0.45) calc(1.4rem + 1px), transparent calc(1.4rem + 1px));
+  }
+
+  .listing--offgrid .journal-item:nth-child(4n + 3) .journal-entry::after {
+    left: 0.1rem;
+    width: 1.2rem;
+  }
+}
+
+/* Keep the static tilts (they are layout, not motion) but drop the hover movement. */
+@media (prefers-reduced-motion: reduce) {
+  .listing--offgrid .journal-entry,
+  .listing--offgrid .journal-photo {
+    transition: none;
+  }
+
+  .listing--offgrid .journal-entry:hover {
+    transform: rotate(-0.4deg);
+  }
+
+  .listing--offgrid .journal-item:nth-child(even) .journal-entry:hover {
+    transform: rotate(0.35deg);
+  }
+
+  .listing--offgrid .journal-entry:hover .journal-photo {
+    transform: rotate(var(--tilt, -1deg));
+  }
+}

@@ -6,7 +6,6 @@
 // Money fields are strings in the contract and stay strings here; format them at display time
 // (lib/money.ts).
 import { toCents } from "../money";
-import { mockProjects } from "../mock/projects";
 import type { components } from "./schema";
 
 export type Project = components["schemas"]["Project"];
@@ -33,6 +32,9 @@ async function loadFixtures(): Promise<Project[]> {
   // sees string literals here, so we assert the contract type.
   const real = files.map((file) => file.default as unknown as Project);
   // Mock listings pad the gallery to five pages until the real catalog grows (lib/mock/projects.ts).
+  // Imported lazily for the same reason as the fixtures: client components that import this
+  // module (recommend-form) must not bundle the mock catalog.
+  const { mockProjects } = await import("../mock/projects");
   return [...real, ...mockProjects];
 }
 

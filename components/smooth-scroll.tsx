@@ -22,5 +22,7 @@ export function SmoothScroll() {
 
   if (!enabled) return null;
   // root: drive the window scroll. lerp 0.1 is Lenis's default glide; anchors: smooth #hash links.
-  return <ReactLenis root options={{ lerp: 0.1, anchors: true }} />;
+  // stopInertiaOnNavigate: clicking a link (e.g. the pager) kills any glide still in flight, so
+  // Next's scroll-to-top on the new page is not dragged back down by leftover momentum.
+  return <ReactLenis root options={{ lerp: 0.1, anchors: true, stopInertiaOnNavigate: true }} />;
 }

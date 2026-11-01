@@ -8,16 +8,14 @@
 // Mock ids start with "mock-"; the gallery labels those cards SAMPLE so nobody mistakes them
 // for real priced projects. Delete this file and its import in lib/api/client.ts to remove them.
 import type { components } from "../api/schema";
+import { MOCK_ID_PREFIX } from "./ids";
+
+// Re-exported so existing imports keep working; new code should import from ./ids.
+export { MOCK_ID_PREFIX, isMockProject } from "./ids";
 
 type Project = components["schemas"]["Project"];
 type MaterialLine = components["schemas"]["MaterialLine"];
 type Difficulty = Project["difficulty"];
-
-export const MOCK_ID_PREFIX = "mock-";
-
-export function isMockProject(id: string): boolean {
-  return id.startsWith(MOCK_ID_PREFIX);
-}
 
 type Trade = "wood" | "metal" | "homestead" | "concrete" | "leather" | "electrical" | "fitness";
 
@@ -276,7 +274,8 @@ export const mockProjects: Project[] = SEEDS.map((seed, index) => {
     estimatedHours: seed.hours,
     imageUrl: null,
     currency: "USD",
-    steps: STEPS[seed.trade],
+    // Copied so editing one project's steps can never change another's.
+    steps: [...STEPS[seed.trade]],
     materials: buildMaterials(seed, slug, index),
   };
 });

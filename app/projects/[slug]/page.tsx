@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { MaterialsGrid } from "../../../components/materials-grid";
 import { ProjectImage } from "../../../components/project-image";
 import { getProject } from "../../../lib/api/client";
+import { isMockProject } from "../../../lib/mock/ids";
 
 // Next 15: route params arrive as a Promise.
 type Props = { params: Promise<{ slug: string }> };
@@ -24,6 +25,9 @@ export default async function ProjectPage({ params }: Props) {
         <ProjectImage title={project.title} imageUrl={project.imageUrl} />
         <div>
           <h1>{project.title}</h1>
+          {isMockProject(project.id) && (
+            <p className="sample-note">Sample project: placeholder materials and prices, not a real listing.</p>
+          )}
           <p className="lede">{project.summary}</p>
           <ul className="meta">
             <li className="badge">{project.difficulty}</li>

@@ -1,1 +1,850 @@
-/* Proposal 3: Post-Modern Architecture. Every rule is scoped under .listing--postmodern. */
+/* Proposal 3: Post-Modern Architecture. Every rule is scoped under .listing--postmodern, with one
+   exception: the site header sits outside <main>, so it is themed through body:has(main.listing--postmodern).
+   Pastel blocks, thick black outlines, hard offset shadows, CSS-only ornament. No fonts or images are fetched. */
+
+/* Local palette. The header selector repeats it because it is not a descendant of main. */
+.listing--postmodern,
+body:has(main.listing--postmodern) .site-header {
+  /* Pastels carry the blocks, primaries are for ornament and the current state. */
+  --pm-ink: #111111;
+  --pm-paper: #fff6e9;
+  --pm-salmon: #f9a8a0;
+  --pm-mint: #a8e6cf;
+  --pm-sky: #a6d3f5;
+  --pm-butter: #fde68a;
+  --pm-lilac: #d6bff2;
+  --pm-red: #c8102e;
+  --pm-blue: #1d4ed8;
+  --pm-yellow: #ffd23f;
+  --pm-line: 4px;
+  --pm-shadow: 8px;
+  /* Space you actually see between blocks; the grid gap adds the shadow on top of it. */
+  --pm-gutter: var(--space-5);
+  /* Geometric sans for display type: Futura on macOS, Century Gothic on Windows, URW Gothic on most Linux. */
+  --pm-font: Futura, "Century Gothic", "URW Gothic", "URW Gothic L", Avenir, "Avenir Next", "Trebuchet MS",
+    sans-serif;
+  /* Body copy stays on the sturdier system sans: the geometric faces are too thin at reading size on pastels. */
+  --pm-text-font: var(--font-sans);
+}
+
+.listing--postmodern {
+  min-height: 100vh;
+  color: var(--pm-ink);
+  font-family: var(--pm-font);
+  /* Full-bleed terrazzo: offset speckle layers at different tile sizes so the repeat is hard to spot. */
+  background-color: var(--pm-paper);
+  background-image:
+    radial-gradient(circle at 20% 30%, var(--pm-salmon) 0 3px, transparent 4px),
+    radial-gradient(circle at 70% 60%, var(--pm-sky) 0 2px, transparent 3px),
+    radial-gradient(circle at 40% 80%, var(--pm-mint) 0 3px, transparent 4px),
+    radial-gradient(circle at 85% 15%, rgba(17, 17, 17, 0.35) 0 1.5px, transparent 2.5px);
+  background-size:
+    71px 71px,
+    53px 53px,
+    97px 97px,
+    37px 37px;
+}
+
+/* ---------- Site header: a white cornice over a butter-and-ink entablature, links as colour tabs ---------- */
+
+body:has(main.listing--postmodern) .site-header {
+  position: relative;
+  background: #ffffff;
+  border-bottom: var(--pm-line) solid var(--pm-ink);
+  box-shadow:
+    0 6px 0 var(--pm-butter),
+    0 10px 0 var(--pm-ink);
+}
+
+body:has(main.listing--postmodern) .site-nav {
+  font-family: var(--pm-font);
+}
+
+body:has(main.listing--postmodern) .site-nav .brand {
+  color: var(--pm-ink);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+body:has(main.listing--postmodern) .site-nav a:not(.brand) {
+  display: inline-block;
+  padding: 0.1rem 0.55rem;
+  border: 3px solid var(--pm-ink);
+  background: var(--pm-salmon);
+  color: var(--pm-ink);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 3px 3px 0 var(--pm-ink);
+  transition:
+    transform 120ms ease-out,
+    box-shadow 120ms ease-out;
+}
+
+body:has(main.listing--postmodern) .site-nav a:nth-of-type(3) {
+  background: var(--pm-mint);
+}
+
+body:has(main.listing--postmodern) .site-nav a:nth-of-type(4) {
+  background: var(--pm-sky);
+}
+
+body:has(main.listing--postmodern) .site-nav a:not(.brand):hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 var(--pm-ink);
+}
+
+body:has(main.listing--postmodern) .site-nav a:focus-visible {
+  outline: 4px solid var(--pm-red);
+  outline-offset: 4px;
+}
+
+/* ---------- Page header: a white facade panel with a checkerboard frieze ---------- */
+
+.listing--postmodern .listing-header {
+  position: relative;
+  /* Top margin clears the nav entablature and the disc; the right margin lines the panel's border
+     up with the blocks below, whose shadows also end at the container edge. */
+  margin: var(--space-6) var(--pm-shadow) 3.5rem 0;
+  padding: 2.75rem var(--space-5) var(--space-5);
+  background: #ffffff;
+  border: var(--pm-line) solid var(--pm-ink);
+  box-shadow: var(--pm-shadow) var(--pm-shadow) 0 var(--pm-blue);
+}
+
+.listing--postmodern .listing-header::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 14px;
+  border-bottom: var(--pm-line) solid var(--pm-ink);
+  background: conic-gradient(var(--pm-ink) 25%, #ffffff 0 50%, var(--pm-ink) 0 75%, #ffffff 0) 0 0 / 14px 14px;
+}
+
+/* A Memphis disc sitting on the frieze; it ends above the h1 so it never covers text. */
+.listing--postmodern .listing-header::after {
+  content: "";
+  position: absolute;
+  top: -1.5rem;
+  right: 1.5rem;
+  width: 3rem;
+  height: 3rem;
+  border: var(--pm-line) solid var(--pm-ink);
+  border-radius: 50%;
+  background: var(--pm-yellow);
+  box-shadow: 4px 4px 0 var(--pm-ink);
+}
+
+.listing--postmodern h1 {
+  margin: 0 0 var(--space-3);
+  font-family: var(--pm-font);
+  font-size: clamp(2.25rem, 7vw, 4.75rem);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+  color: var(--pm-ink);
+  /* Stacked hard shadows: the text stays solid black, the colour is only behind it. */
+  text-shadow:
+    3px 3px 0 var(--pm-salmon),
+    6px 6px 0 var(--pm-sky);
+}
+
+.listing--postmodern .lede {
+  max-width: 40rem;
+  margin: 0 0 var(--space-5);
+  padding-left: var(--space-3);
+  border-left: 6px solid var(--pm-red);
+  color: var(--pm-ink);
+  font-family: var(--pm-text-font);
+  font-size: 1.0625rem;
+  font-weight: 500;
+}
+
+/* ---------- View switcher: chunky pastel tabs ---------- */
+
+.listing--postmodern .view-switcher {
+  margin: 0;
+  font-family: var(--pm-font);
+}
+
+.listing--postmodern .view-switcher-label {
+  color: var(--pm-ink);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.listing--postmodern .view-switcher ul {
+  gap: var(--space-3);
+}
+
+.listing--postmodern .view-switcher a {
+  padding: var(--space-1) var(--space-3);
+  border: 3px solid var(--pm-ink);
+  border-radius: 0;
+  background: var(--pm-butter);
+  color: var(--pm-ink);
+  font-weight: 700;
+  box-shadow: 3px 3px 0 var(--pm-ink);
+  transition:
+    transform 120ms ease-out,
+    box-shadow 120ms ease-out;
+}
+
+.listing--postmodern .view-switcher li:nth-child(4n + 1) a {
+  background: var(--pm-salmon);
+}
+
+.listing--postmodern .view-switcher li:nth-child(4n + 2) a {
+  background: var(--pm-mint);
+}
+
+.listing--postmodern .view-switcher li:nth-child(4n + 3) a {
+  background: var(--pm-sky);
+}
+
+/* Blue with white text is about 6.7:1, so the current tab passes AA. */
+.listing--postmodern .view-switcher a[aria-current="page"] {
+  background: var(--pm-blue);
+  border-color: var(--pm-ink);
+  color: #ffffff;
+}
+
+.listing--postmodern .view-switcher a:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 var(--pm-ink);
+}
+
+/* ---------- The facade grid ---------- */
+
+/* Six columns; each slot's span is fixed (see .pm-slot-N), so one page always forms the same building.
+   The gap is the visible gutter plus the shadow, so the space between one block's shadow and the next
+   block's border is the same on every side. The right/bottom padding gives the last shadows room. */
+.listing--postmodern .pm-facade {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-rows: minmax(12rem, auto);
+  gap: calc(var(--pm-gutter) + var(--pm-shadow));
+  margin: 0;
+  padding: 0 var(--pm-shadow) var(--pm-shadow) 0;
+  list-style: none;
+}
+
+.listing--postmodern .pm-tile {
+  display: grid;
+  min-width: 0;
+}
+
+.listing--postmodern .pm-slot-0 {
+  grid-column: span 4;
+  grid-row: span 2;
+}
+
+.listing--postmodern .pm-slot-1,
+.listing--postmodern .pm-slot-4,
+.listing--postmodern .pm-slot-6 {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+.listing--postmodern .pm-slot-2,
+.listing--postmodern .pm-slot-3,
+.listing--postmodern .pm-slot-7,
+.listing--postmodern .pm-slot-8 {
+  grid-column: span 2;
+}
+
+.listing--postmodern .pm-slot-5,
+.listing--postmodern .pm-slot-9 {
+  grid-column: span 4;
+}
+
+.listing--postmodern .pm-tone--salmon {
+  --pm-tone: var(--pm-salmon);
+}
+
+.listing--postmodern .pm-tone--mint {
+  --pm-tone: var(--pm-mint);
+}
+
+.listing--postmodern .pm-tone--sky {
+  --pm-tone: var(--pm-sky);
+}
+
+.listing--postmodern .pm-tone--butter {
+  --pm-tone: var(--pm-butter);
+}
+
+.listing--postmodern .pm-tone--lilac {
+  --pm-tone: var(--pm-lilac);
+}
+
+/* ---------- Card: one block of the building ---------- */
+
+.listing--postmodern .pm-card {
+  /* Container queries let the wide blocks switch layout by their own width, not the viewport's. */
+  container-type: inline-size;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--pm-tone, var(--pm-butter));
+  border: var(--pm-line) solid var(--pm-ink);
+  box-shadow: var(--pm-shadow) var(--pm-shadow) 0 var(--pm-ink);
+  color: var(--pm-ink);
+  text-decoration: none;
+  transition:
+    transform 140ms ease-out,
+    box-shadow 140ms ease-out;
+}
+
+.listing--postmodern .pm-card:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: calc(var(--pm-shadow) + 3px) calc(var(--pm-shadow) + 3px) 0 var(--pm-ink);
+}
+
+/* One focus colour for every interactive element in this view; the offset puts it on the cream page. */
+.listing--postmodern .pm-card:focus-visible,
+.listing--postmodern .view-switcher a:focus-visible,
+.listing--postmodern .pagination a:focus-visible {
+  outline: 4px solid var(--pm-red);
+  outline-offset: 5px;
+}
+
+/* The content block is centred in whatever height the grid row gives it, so tall blocks read as
+   composed rather than as text at the top and chips stranded at the bottom. The bottom padding
+   leaves room for the sample plaque in the corner. */
+.listing--postmodern .pm-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-4) var(--space-4) 1.75rem;
+}
+
+/* One numeral style everywhere: white figures, black outline, hard shadow. Sizes change, the style does not.
+   Tight tracking and proportional figures stop "11" splitting into "1 1" in Futura-like faces. */
+.listing--postmodern .pm-numeral {
+  display: block;
+  margin-bottom: var(--space-3);
+  font-family: var(--pm-font);
+  font-size: 3.5rem;
+  font-weight: 800;
+  font-variant-numeric: lining-nums proportional-nums;
+  line-height: 0.9;
+  letter-spacing: -0.05em;
+  color: #ffffff;
+  -webkit-text-stroke: 2px var(--pm-ink);
+  text-shadow: 4px 4px 0 var(--pm-ink);
+}
+
+.listing--postmodern .pm-card h2 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--pm-font);
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+/* Reading copy: system sans, medium weight, 16px, full ink, so it holds up on every pastel. */
+.listing--postmodern .pm-card p {
+  margin: 0;
+  color: var(--pm-ink);
+  font-family: var(--pm-text-font);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+/* Chips and the price sticker sit right under the copy, not pinned to the floor of the block. */
+.listing--postmodern .pm-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.listing--postmodern .pm-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listing--postmodern .pm-stat {
+  padding: 0.05rem 0.5rem;
+  border: 2px solid var(--pm-ink);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--pm-ink);
+  font-family: var(--pm-text-font);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* The tilt: every price is a black sticker slapped on slightly askew. Static, so it does not move. */
+.listing--postmodern .pm-price {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  background: var(--pm-ink);
+  color: #ffffff;
+  font-family: var(--pm-font);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 3px 3px 0 var(--pm-red);
+  transform: rotate(-3deg);
+}
+
+/* Sample plaque: a small black tag fixed in the block's bottom-right corner, inside the border. */
+.listing--postmodern .pm-sample {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  padding: 0.15rem 0.5rem;
+  background: var(--pm-ink);
+  color: #ffffff;
+  font-family: var(--pm-text-font);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Window: frames ProjectImage; the lettered placeholder becomes a terrazzo slab. */
+.listing--postmodern .pm-window {
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.listing--postmodern .pm-window .thumb,
+.listing--postmodern .pm-window .thumb-placeholder {
+  border: var(--pm-line) solid var(--pm-ink);
+}
+
+.listing--postmodern .pm-window .thumb-placeholder {
+  background-color: #ffffff;
+  background-image:
+    radial-gradient(circle at 30% 40%, var(--pm-red) 0 3px, transparent 4px),
+    radial-gradient(circle at 70% 70%, var(--pm-blue) 0 2px, transparent 3px),
+    radial-gradient(circle at 60% 20%, var(--pm-yellow) 0 4px, transparent 5px);
+  background-size:
+    41px 41px,
+    29px 29px,
+    53px 53px;
+  color: var(--pm-ink);
+  font-family: var(--pm-font);
+  font-size: 4rem;
+  font-weight: 800;
+  text-shadow: 3px 3px 0 var(--pm-tone, var(--pm-butter));
+}
+
+/* ---------- Shapes ---------- */
+
+/* Hero: checkerboard frieze with a sun disc, and the largest numeral on the page. */
+.listing--postmodern .pm-tile--hero .pm-ornament {
+  position: relative;
+  display: block;
+  height: 1.5rem;
+  border-bottom: var(--pm-line) solid var(--pm-ink);
+  background: conic-gradient(var(--pm-ink) 25%, #ffffff 0 50%, var(--pm-ink) 0 75%, #ffffff 0) 0 0 / 1.5rem 1.5rem;
+}
+
+.listing--postmodern .pm-tile--hero .pm-ornament::after {
+  content: "";
+  position: absolute;
+  top: -1.25rem;
+  right: 1.5rem;
+  width: 3.5rem;
+  height: 3.5rem;
+  border: var(--pm-line) solid var(--pm-ink);
+  border-radius: 50%;
+  background: var(--pm-yellow);
+}
+
+.listing--postmodern .pm-tile--hero .pm-numeral {
+  font-size: clamp(4.5rem, 8vw, 6.5rem);
+  -webkit-text-stroke-width: 3px;
+  text-shadow: 6px 6px 0 var(--pm-ink);
+}
+
+.listing--postmodern .pm-tile--hero h2 {
+  font-size: clamp(1.6rem, 3vw, 2.25rem);
+}
+
+.listing--postmodern .pm-tile--hero p {
+  font-size: 1.0625rem;
+}
+
+/* Arch: elliptical top like a Graves doorway, with a keystone at the crown; content is centred. */
+.listing--postmodern .pm-tile--arch .pm-card {
+  border-radius: 50% 50% 0 0 / 9rem 9rem 0 0;
+  text-align: center;
+}
+
+.listing--postmodern .pm-tile--arch .pm-ornament {
+  position: absolute;
+  top: -1.1rem;
+  left: 50%;
+  width: 2.5rem;
+  height: 2.5rem;
+  transform: translateX(-50%);
+}
+
+/* Two clipped layers fake an outline, since clip-path cuts off borders. */
+.listing--postmodern .pm-tile--arch .pm-ornament::before,
+.listing--postmodern .pm-tile--arch .pm-ornament::after {
+  content: "";
+  position: absolute;
+  clip-path: polygon(0 0, 100% 0, 78% 100%, 22% 100%);
+}
+
+.listing--postmodern .pm-tile--arch .pm-ornament::before {
+  inset: 0;
+  background: var(--pm-ink);
+}
+
+.listing--postmodern .pm-tile--arch .pm-ornament::after {
+  inset: 4px 5px 4px;
+  background: var(--pm-red);
+}
+
+/* The window clears the keystone with room to spare, and is wide enough to fill a two-row doorway. */
+.listing--postmodern .pm-tile--arch .pm-window {
+  width: 66%;
+  margin: 0 auto;
+  padding-top: 3rem;
+}
+
+.listing--postmodern .pm-tile--arch .pm-window .thumb,
+.listing--postmodern .pm-tile--arch .pm-window .thumb-placeholder {
+  border-radius: 999px 999px 0 0;
+}
+
+.listing--postmodern .pm-tile--arch .pm-body {
+  padding-top: var(--space-5);
+}
+
+.listing--postmodern .pm-tile--arch .pm-foot {
+  justify-content: center;
+}
+
+/* Pediment: a low gable over an entablature line. */
+.listing--postmodern .pm-tile--pediment .pm-ornament {
+  position: relative;
+  display: block;
+  height: 4rem;
+  border-bottom: var(--pm-line) solid var(--pm-ink);
+  box-shadow: 0 6px 0 var(--pm-tone, var(--pm-butter)), 0 10px 0 var(--pm-ink);
+  margin-bottom: 10px;
+}
+
+.listing--postmodern .pm-tile--pediment .pm-ornament::before,
+.listing--postmodern .pm-tile--pediment .pm-ornament::after {
+  content: "";
+  position: absolute;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.listing--postmodern .pm-tile--pediment .pm-ornament::before {
+  inset: 0.5rem 0.75rem 0;
+  background: var(--pm-ink);
+}
+
+.listing--postmodern .pm-tile--pediment .pm-ornament::after {
+  inset: calc(0.5rem + 9px) calc(0.75rem + 15px) 0;
+  background: var(--pm-blue);
+}
+
+/* Plain: terrazzo slab with a Memphis triangle-and-disc in the corner. The speckle stays on the slab;
+   the title and summary sit on a solid plate, so no dot ever runs behind text. */
+.listing--postmodern .pm-tile--plain .pm-card {
+  background-image:
+    radial-gradient(circle at 25% 35%, rgba(255, 255, 255, 0.85) 0 3px, transparent 4px),
+    radial-gradient(circle at 75% 65%, rgba(17, 17, 17, 0.28) 0 2px, transparent 3px);
+  background-size:
+    33px 33px,
+    47px 47px;
+}
+
+.listing--postmodern .pm-tile--plain .pm-ornament {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: 2.75rem;
+  height: 2.5rem;
+}
+
+.listing--postmodern .pm-tile--plain .pm-ornament::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--pm-ink);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.listing--postmodern .pm-tile--plain .pm-ornament::after {
+  content: "";
+  position: absolute;
+  left: -0.6rem;
+  bottom: -0.4rem;
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 3px solid var(--pm-ink);
+  border-radius: 50%;
+  background: var(--pm-red);
+}
+
+/* A big numeral is the slab's motif; it is tall enough that the title always starts below the triangle. */
+.listing--postmodern .pm-tile--plain .pm-numeral {
+  font-size: 5rem;
+  -webkit-text-stroke-width: 3px;
+  text-shadow: 5px 5px 0 var(--pm-ink);
+}
+
+.listing--postmodern .pm-tile--plain .pm-copy {
+  padding: var(--space-3) var(--space-4);
+  background: var(--pm-tone, var(--pm-butter));
+  border: 3px solid var(--pm-ink);
+  box-shadow: 4px 4px 0 var(--pm-ink);
+}
+
+/* Colonnade: stubby white columns between a capital and a plinth, holding the block up. */
+.listing--postmodern .pm-tile--colonnade .pm-ornament {
+  order: 2;
+  display: block;
+  height: 3rem;
+  border-top: var(--pm-line) solid var(--pm-ink);
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0 12px,
+    var(--pm-ink) 12px 15px,
+    #ffffff 15px 31px,
+    var(--pm-ink) 31px 34px,
+    transparent 34px 46px
+  );
+  box-shadow: inset 0 6px 0 var(--pm-ink);
+}
+
+/* The plaque sits on top of the columns rather than across them. */
+.listing--postmodern .pm-tile--colonnade .pm-sample {
+  bottom: 3rem;
+}
+
+/* Wide: squiggle frieze; when the block is wide enough the numeral moves into a yellow porthole on the left. */
+.listing--postmodern .pm-tile--wide .pm-ornament {
+  display: block;
+  height: 16px;
+  margin: var(--space-3) var(--space-4) 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='16' viewBox='0 0 40 16'%3E%3Cpath d='M0 8 Q10 0 20 8 T40 8' fill='none' stroke='%23111111' stroke-width='3'/%3E%3C/svg%3E")
+    repeat-x 0 50% / 40px 16px;
+}
+
+@container (min-width: 30rem) {
+  .listing--postmodern .pm-tile--wide .pm-body {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-content: center;
+    column-gap: var(--space-5);
+  }
+
+  /* Same outlined numeral as every other block, set inside a yellow disc. */
+  .listing--postmodern .pm-tile--wide .pm-numeral {
+    grid-row: 1 / span 2;
+    align-self: center;
+    display: grid;
+    place-items: center;
+    width: 6rem;
+    height: 6rem;
+    margin: 0;
+    border: var(--pm-line) solid var(--pm-ink);
+    border-radius: 50%;
+    background: var(--pm-yellow);
+    box-shadow: 4px 4px 0 var(--pm-ink);
+    font-size: 2.75rem;
+    text-shadow: 3px 3px 0 var(--pm-ink);
+  }
+
+  .listing--postmodern .pm-tile--wide .pm-body > :not(.pm-numeral) {
+    grid-column: 2;
+  }
+}
+
+/* ---------- Pagination: a row of blocks ---------- */
+
+.listing--postmodern .pagination {
+  margin: var(--space-6) 0 var(--space-4);
+  font-family: var(--pm-font);
+}
+
+.listing--postmodern .pagination-status {
+  color: var(--pm-ink);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.listing--postmodern .pagination ul {
+  gap: var(--space-3);
+}
+
+.listing--postmodern .pagination-page,
+.listing--postmodern .pagination-step {
+  border: 3px solid var(--pm-ink);
+  border-radius: 0;
+  background: #ffffff;
+  color: var(--pm-ink);
+  font-weight: 700;
+  box-shadow: 4px 4px 0 var(--pm-ink);
+  transition:
+    transform 120ms ease-out,
+    box-shadow 120ms ease-out;
+}
+
+.listing--postmodern a.pagination-page:hover,
+.listing--postmodern a.pagination-step:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--pm-ink);
+}
+
+/* Red with white text is about 6:1, so the current page passes AA. */
+.listing--postmodern .pagination-page[aria-current="page"] {
+  background: var(--pm-red);
+  border-color: var(--pm-ink);
+  color: #ffffff;
+}
+
+/* Disabled steps: dashed and grey instead of faded, so the label stays readable. */
+.listing--postmodern .pagination-step[aria-disabled="true"] {
+  border-style: dashed;
+  box-shadow: none;
+  color: #595959;
+  opacity: 1;
+}
+
+/* ---------- Responsive ---------- */
+
+/* Tablet: four columns. Only the hero keeps a double row; slot 9 narrows so the last row has no hole. */
+@media (max-width: 64rem) {
+  .listing--postmodern .pm-facade {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .listing--postmodern .pm-slot-1,
+  .listing--postmodern .pm-slot-4,
+  .listing--postmodern .pm-slot-6 {
+    grid-row: span 1;
+  }
+
+  .listing--postmodern .pm-slot-9 {
+    grid-column: span 2;
+  }
+}
+
+/* Above phone width the hero puts its window beside the text, both centred on the block's height. */
+@media (min-width: 40.01rem) {
+  .listing--postmodern .pm-tile--hero .pm-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .listing--postmodern .pm-tile--hero .pm-ornament {
+    grid-column: 1 / -1;
+  }
+
+  .listing--postmodern .pm-tile--hero .pm-window {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+    padding: var(--space-5) var(--space-5) var(--space-5) 0;
+  }
+
+  .listing--postmodern .pm-tile--hero .pm-body {
+    grid-column: 1;
+    grid-row: 2;
+    padding: var(--space-5) var(--space-5) 2rem;
+  }
+}
+
+/* Phone: one column, every block the same width; shapes keep their ornament. */
+@media (max-width: 40rem) {
+  .listing--postmodern {
+    --pm-shadow: 6px;
+  }
+
+  .listing--postmodern .listing-header {
+    padding: 2.5rem var(--space-4) var(--space-4);
+  }
+
+  .listing--postmodern .pm-facade {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: auto;
+  }
+
+  .listing--postmodern .pm-tile {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  /* The sun shrinks and sinks into the frieze, so it no longer reaches up towards the header panel. */
+  .listing--postmodern .pm-tile--hero .pm-ornament::after {
+    top: -0.75rem;
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  /* Smaller keystone and a deeper doorway, so the keystone and the window never touch. */
+  .listing--postmodern .pm-tile--arch .pm-ornament {
+    top: -0.9rem;
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .listing--postmodern .pm-tile--arch .pm-window {
+    padding-top: 3.5rem;
+  }
+
+  .listing--postmodern .pm-tile--plain .pm-numeral {
+    font-size: 4.25rem;
+  }
+}
+
+/* Small phones: the nav tabs shrink so all three links still share one row under the brand. */
+@media (max-width: 30rem) {
+  body:has(main.listing--postmodern) .site-nav a:not(.brand) {
+    padding: 0.05rem 0.4rem;
+    font-size: 0.8125rem;
+  }
+}
+
+/* No movement for people who ask for less: hover and focus still change the shadow, just instantly. */
+@media (prefers-reduced-motion: reduce) {
+  .listing--postmodern .pm-card,
+  .listing--postmodern .view-switcher a,
+  .listing--postmodern .pagination-page,
+  .listing--postmodern .pagination-step,
+  body:has(main.listing--postmodern) .site-nav a {
+    transition: none;
+  }
+
+  .listing--postmodern .pm-card:hover,
+  .listing--postmodern .view-switcher a:hover,
+  .listing--postmodern a.pagination-page:hover,
+  .listing--postmodern a.pagination-step:hover,
+  body:has(main.listing--postmodern) .site-nav a:hover {
+    transform: none;
+  }
+}
