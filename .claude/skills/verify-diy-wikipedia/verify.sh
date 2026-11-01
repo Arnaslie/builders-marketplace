@@ -8,6 +8,7 @@
 #   verify.sh get     RUN_ID PATH NAME  curl web PATH; save status+headers+body to evidence as NAME.*
 #   verify.sh api     RUN_ID METHOD PATH NAME [JSON]  call the API; save request+status+headers+body as NAME.*
 #   verify.sh shot    RUN_ID PATH NAME  headless Firefox screenshot of web PATH -> evidence/NAME.png
+#   verify.sh drive   RUN_ID DRIVER     run drivers/DRIVER.mjs in real Chromium (Playwright); exit 1 on FAIL
 #   verify.sh cleanup RUN_ID            stop the servers we started, delete the app copy, keep evidence
 #
 # Every run lives under $VERIFY_ROOT/<RUN_ID>/ (default: <repo>/.verify/):
@@ -166,6 +167,26 @@ cmd_shot() {
   echo "screenshot $d/evidence/$name.png"
 }
 
+# drive RUN_ID DRIVER: interactive browser checks. Firefox --screenshot captures before React
+# hydrates, so client-rendered UI (the AG Grid rows) only shows up here. Playwright lives in a user
+# cache outside the repo (never in package.json, so Render installs stay unchanged); first use
+# installs it plus Chromium (~120 MB).
+cmd_drive() {
+  local d; d="$(run_dir "$1")"; local driver="$2"
+  local src="$REPO/.claude/skills/verify-diy-wikipedia/drivers/$driver.mjs"
+  [[ -f "$src" ]] || die "no driver $src"
+  local pw="${VERIFY_PW_DIR:-$HOME/.cache/verify-diy-wikipedia/playwright}"
+  if [[ ! -d "$pw/node_modules/playwright" ]]; then
+    mkdir -p "$pw"
+    ( cd "$pw" && { [[ -f package.json ]] || npm init -y >/dev/null; } \
+      && npm i --no-audit --no-fund playwright@1 && npx playwright install chromium ) > "$d/state/playwright-install.log" 2>&1 \
+      || die "playwright install failed; see $d/state/playwright-install.log"
+  fi
+  # The driver must sit next to node_modules for ESM to resolve "playwright".
+  cp "$src" "$pw/$driver.mjs"
+  ( cd "$pw" && node "$driver.mjs" "$(base_url "$1")" "$d/evidence" )
+}
+
 cmd_cleanup() {
   local d; d="$(run_dir "$1")"
   [[ -d "$d" ]] || die "no run at $d"
@@ -190,6 +211,7 @@ case "${1:-}" in
   get)     shift; [[ $# == 3 ]] || die "usage: get RUN_ID PATH NAME"; cmd_get "$@" ;;
   api)     shift; [[ $# == 4 || $# == 5 ]] || die "usage: api RUN_ID METHOD PATH NAME [JSON]"; cmd_api "$@" ;;
   shot)    shift; [[ $# == 3 ]] || die "usage: shot RUN_ID PATH NAME"; cmd_shot "$@" ;;
+  drive)   shift; [[ $# == 2 ]] || die "usage: drive RUN_ID DRIVER"; cmd_drive "$@" ;;
   cleanup) shift; cmd_cleanup "$@" ;;
-  *) sed -n '2,16p' "$0"; exit 2 ;;
+  *) sed -n '2,17p' "$0"; exit 2 ;;
 esac

@@ -1,13 +1,14 @@
 # Home page
 
 The home page is what a visitor sees at the site root: a page titled `DIY Wikipedia` with an
-`<h1>DIY Wikipedia</h1>` heading and placeholder copy where the project gallery will go.
+`<h1>DIY Wikipedia</h1>` heading and a masonry gallery of project cards, each linking to
+`/projects/<slug>`. Page-by-page proof for the other web routes is in [web-pages.md](./web-pages.md).
 
 ## Sub-features
 
 - `home-render` returns 200 HTML with the `DIY Wikipedia` heading.
 - `home-meta` sets the document title and meta description from `app/layout.tsx`.
-- `home-placeholder` shows the gallery placeholder sentence.
+- `home-gallery` lists one card per fixture project (three today), each linking to its project page.
 - `home-visual` renders visibly in a real browser.
 
 ## How to get to it (user POV)
@@ -26,10 +27,11 @@ Preconditions:
 - **Metadata.** Run `grep -o '<title>DIY Wikipedia</title>' .verify/$RUN/evidence/home.body` and
   `grep -o 'Hands-on projects with a materials grid and a PayPal-powered shopping agent.' .verify/$RUN/evidence/home.body`.
   Both match (the description prints twice: once in `<meta>`, once in the RSC payload).
-- **Placeholder copy.** Run `grep -o 'Placeholder. The project gallery goes here.' .verify/$RUN/evidence/home.body`.
-  At least one match (expect two: rendered HTML plus the RSC payload script). (When the gallery replaces it, update this step and the sub-feature.)
+- **Gallery.** Run `grep -o 'href="/projects/[a-z-]*"' .verify/$RUN/evidence/home.body | sort -u`.
+  Three links: `/projects/forged-kitchen-knife`, `/projects/simple-wooden-chair`,
+  `/projects/wooden-squat-rack`.
 - **Proof.** Run `$V shot "$RUN" / home`. `evidence/home.png` shows the `DIY Wikipedia` heading
-  and the placeholder sentence on a white page.
+  and three project cards.
 
 ## Gotchas
 

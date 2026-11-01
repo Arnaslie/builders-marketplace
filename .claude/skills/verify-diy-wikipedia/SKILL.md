@@ -7,14 +7,15 @@ description: Launch, health-check, and drive the real DIY Wikipedia services in 
 
 DIY Wikipedia is two services in one repo:
 
-- **web**: a Next.js 15 (App Router) app at the repo root. Browser surface: the placeholder home
-  page at `/` (the future project gallery); HTTP: `/healthz` and Next's 404 page.
+- **web**: a Next.js 15 (App Router) app at the repo root. Browser surface: the project gallery at
+  `/`, project pages at `/projects/<slug>` (AG Grid materials table), `/cart`, `/checkout/success`
+  and `/recommend`; HTTP: `/healthz` and Next's 404 page.
 - **api**: a FastAPI service in `api/` (Python 3.12, uv). HTTP only: `/healthz`, `/projects`,
   `/projects/{slug}`, `/recommendations`, `/agent/build-cart`, `/checkout/orders`,
   `/checkout/orders/{id}/capture`, `/webhooks/paypal`, and `/openapi.json`, which must equal the
   committed `contract/openapi.json`. Data comes from `contract/fixtures/*.json`.
 
-Both are Render web services in `render.yaml`. Not built yet: the gallery and AG Grid UI,
+Both are Render web services in `render.yaml`. Not built yet: the agent panel, PayPal buttons,
 Channel3 pricing, the LLM part of the agent, and real PayPal calls (checkout routes are stubs).
 Do not claim to verify those. When they land, add them to `features/` (see
 `/pstack:maintain-verification-skill`).
@@ -97,9 +98,13 @@ $V api "$RUN" POST /agent/build-cart api-cart '{"projectId":"proj-chair"}'   # b
 - `api` does the same against the API for any method; with a JSON body it sends
   `Content-Type: application/json` and saves the body as `evidence/NAME.request`.
 - `shot` uses headless Firefox with a throwaway profile and `--no-remote`, so it never touches
-  the user's browser session. It takes one full-load screenshot; it cannot click or type. When
-  the app grows interactive features (grid editing, checkout popup), add a real browser driver
-  (e.g. Playwright, not installed today) and record its recipe in the feature file.
+  the user's browser session. It takes one full-load screenshot; it cannot click or type, and it
+  captures **before React hydrates**, so client-rendered UI (AG Grid rows) appears empty in it.
+- `drive RUN_ID DRIVER` runs `drivers/DRIVER.mjs` in real Chromium via Playwright. It clicks,
+  types and asserts expected values, and exits 1 on any FAIL. Playwright and Chromium install
+  on first use into `~/.cache/verify-diy-wikipedia/playwright` (override with `VERIFY_PW_DIR`),
+  never into the repo's `package.json`. Use it for every interactive feature; add a new driver
+  for each new one (checkout popup, agent panel) and record it in the feature file.
 - Per-feature recipes, with exact selectors and expected results, are in
   [`features/README.md`](features/README.md). Use the matching file; cover every entry point
   it lists.
@@ -152,6 +157,7 @@ and kill only a process group whose cwd is under `.verify/`.
 | `verify.sh get RUN_ID PATH NAME` | web HTTP GET → `evidence/NAME.{status,headers,body}` |
 | `verify.sh api RUN_ID METHOD PATH NAME [JSON]` | API request → `evidence/NAME.{request,status,headers,body}` |
 | `verify.sh shot RUN_ID PATH NAME` | screenshot → `evidence/NAME.png` |
+| `verify.sh drive RUN_ID DRIVER` | real-browser interaction check (`drivers/DRIVER.mjs`); exit 1 on FAIL |
 | `verify.sh cleanup RUN_ID` | stop both servers, delete app copy, keep evidence |
 
 `VERIFY_ROOT=/some/dir` overrides `.verify/`.

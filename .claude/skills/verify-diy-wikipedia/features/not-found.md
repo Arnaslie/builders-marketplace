@@ -17,8 +17,8 @@ status, not a 200 or a crash. The app has no custom `not-found.tsx` yet.
 Preconditions:
 
 - `$V doctor "$RUN"` exits 0.
-- `/projects/does-not-exist` is not a route in `app/` (true until project pages ship; then pick
-  a slug the seed data does not contain and say which).
+- `/projects/does-not-exist` is not a fixture slug. `/projects/[slug]` exists and calls
+  `notFound()` for it, so the 404 comes from the project page's `notFound()`.
 
 - **Request.** Run `$V get "$RUN" /projects/does-not-exist notfound`. `evidence/notfound.status`
   is `404`.
@@ -32,3 +32,4 @@ Preconditions:
 
 - The screenshot cannot show the status code; the `get` status file is the proof of `404`.
 - When a custom `app/not-found.tsx` is added, update the expected text here.
+- `/projects/no-such-project` is the same case, driven in [web-pages.md](./web-pages.md).
