@@ -7,14 +7,15 @@ description: Launch, health-check, and drive the real DIY Wikipedia services in 
 
 DIY Wikipedia is two services in one repo:
 
-- **web**: a Next.js 15 (App Router) app at the repo root. Browser surface: the placeholder home
-  page at `/` (the future project gallery); HTTP: `/healthz` and Next's 404 page.
+- **web**: a Next.js 15 (App Router) app at the repo root. Browser surface: the project gallery at
+  `/`, project pages at `/projects/<slug>` (AG Grid materials table), `/cart`, `/checkout/success`
+  and `/recommend`; HTTP: `/healthz` and Next's 404 page.
 - **api**: a FastAPI service in `api/` (Python 3.12, uv). HTTP only: `/healthz`, `/projects`,
   `/projects/{slug}`, `/recommendations`, `/agent/build-cart`, `/checkout/orders`,
   `/checkout/orders/{id}/capture`, `/webhooks/paypal`, and `/openapi.json`, which must equal the
   committed `contract/openapi.json`. Data comes from `contract/fixtures/*.json`.
 
-Both are Render web services in `render.yaml`. Not built yet: the gallery and AG Grid UI,
+Both are Render web services in `render.yaml`. Not built yet: the agent panel, PayPal buttons,
 Channel3 pricing, the LLM part of the agent, and real PayPal calls (checkout routes are stubs).
 Do not claim to verify those. When they land, add them to `features/` (see
 `/pstack:maintain-verification-skill`).

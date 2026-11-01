@@ -32,9 +32,10 @@ Read this index before driving the app, then use the matching feature file as th
 - UI proof includes a screenshot with the `DIY Wikipedia` heading visible.
 - Record the run's source revision (printed by `doctor`) and the feature ID with every artifact.
 - Report an unreachable path with the attempted command and the unmet precondition.
-- Do not report a README-described UI feature (gallery, materials grid, checkout button) as
-  verified: none exist in `app/` yet. The API routes exist, but checkout is a stub: never report a
-  PayPal payment as verified until a sandbox order is proven to exist.
+- The gallery, project pages and materials grid exist (see `web-pages.md`), but grid interactions
+  (editing qty, the owned checkbox, the running total) have no browser driver yet: do not report
+  them as verified from `get`/`shot`. The agent panel and PayPal buttons do not exist. Checkout is
+  a stub: never report a PayPal payment as verified until a sandbox order is proven to exist.
 
 ## Feature entry contract
 
@@ -45,6 +46,8 @@ It then uses exactly four H2 sections in this order: `Sub-features`, `How to get
 ## Features
 
 - [Home page](./home-page.md) covers the landing page at `/` (title, heading, placeholder copy).
+- [Web pages](./web-pages.md) covers `/projects/<slug>` (hero, AG Grid materials table, total),
+  the project 404, `/cart`, `/checkout/success` and `/recommend`.
 - [Health check](./health-check.md) covers `/healthz`, the route Render gates deploys on.
 - [Not found page](./not-found.md) covers the 404 response for unknown paths.
 - [API health and contract](./api-health-and-contract.md) covers the API's `/healthz`,
@@ -56,8 +59,8 @@ It then uses exactly four H2 sections in this order: `Sub-features`, `How to get
 
 ## Not yet built (from README; add a file when code lands)
 
-- Project gallery UI (Pinterest-style grid; data exists at API `GET /projects`).
-- Project page with AG Grid materials-and-tools table (data exists at API `GET /projects/{slug}`).
+- Browser-driven checks of the materials grid (qty edit, owned checkbox, total recompute).
+- Shopping agent panel and PayPal buttons.
 - Channel3 live pricing / product matches (`channel3ProductId` is `null` everywhere).
 - LLM layer on the shopping agent (the deterministic rules exist).
 - Real PayPal Orders v2 sandbox calls (routes are stubs).
