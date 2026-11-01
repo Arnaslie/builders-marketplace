@@ -6,6 +6,7 @@
 // Money fields are strings in the contract and stay strings here; format them at display time
 // (lib/money.ts).
 import { toCents } from "../money";
+import { mockProjects } from "../mock/projects";
 import type { components } from "./schema";
 
 export type Project = components["schemas"]["Project"];
@@ -30,7 +31,9 @@ async function loadFixtures(): Promise<Project[]> {
   ]);
   // The JSON is validated against the Project model by the API's own tests; TypeScript only
   // sees string literals here, so we assert the contract type.
-  return files.map((file) => file.default as unknown as Project);
+  const real = files.map((file) => file.default as unknown as Project);
+  // Mock listings pad the gallery to five pages until the real catalog grows (lib/mock/projects.ts).
+  return [...real, ...mockProjects];
 }
 
 // Mirrors api/app/main.py list_projects: summary plus lineCount and estimatedTotal
