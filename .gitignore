@@ -4,5 +4,9 @@
 node_modules/
 .next/
 next-env.d.ts
+# api (Python / uv)
+.venv/
+__pycache__/
+.pytest_cache/
 # verify-diy-wikipedia skill: disposable app copies and proof artifacts
 .verify/

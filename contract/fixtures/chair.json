@@ -1,0 +1,250 @@
+{
+  "id": "proj-chair",
+  "slug": "simple-wooden-chair",
+  "status": "published",
+  "title": "Simple Wooden Chair",
+  "summary": "A sturdy dining chair from 2x2 and 1x4 pine, joined with pocket screws and glue. A good first furniture build: straight cuts only, no lathe or router.",
+  "difficulty": "beginner",
+  "estimatedHours": 6,
+  "imageUrl": null,
+  "currency": "USD",
+  "steps": [
+    "Cut the 2x2 boards into four legs (17 1/2 in), and the 1x4 boards into seat rails, a back rest and seat slats.",
+    "Drill pocket holes on both ends of every rail with the pocket hole jig.",
+    "Glue and screw the side rails to the legs to make two side frames; clamp until the glue grabs.",
+    "Join the side frames with the front and back rails, checking the frame is square.",
+    "Screw the seat slats on from below and fit the back rest between the rear legs.",
+    "Sand from 80 to 220 grit, wipe off the dust, and apply two coats of polyurethane."
+  ],
+  "materials": [
+    {
+      "id": "chair-pine-2x2",
+      "name": "2 in x 2 in x 8 ft pine furring strip",
+      "qty": 3,
+      "unit": "board",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "3.28",
+      "currency": "USD",
+      "retailer": "The Home Depot",
+      "productUrl": "https://www.homedepot.com/s/2x2%20pine%208%20ft",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "chair-pine-1x4",
+      "name": "1 in x 4 in x 8 ft common pine board",
+      "qty": 2,
+      "unit": "board",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "4.98",
+      "currency": "USD",
+      "retailer": "The Home Depot",
+      "productUrl": "https://www.homedepot.com/s/1x4%20pine%208%20ft",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "chair-wood-glue",
+      "name": "Titebond II Premium wood glue, 8 oz",
+      "qty": 1,
+      "unit": "bottle",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "4.97",
+      "currency": "USD",
+      "retailer": "Lowe's",
+      "productUrl": "https://www.lowes.com/search?searchTerm=titebond%20ii%208%20oz",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "chair-pocket-screws",
+      "name": "1 1/4 in coarse-thread pocket hole screws, 100 pack",
+      "qty": 1,
+      "unit": "pack",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "6.98",
+      "currency": "USD",
+      "retailer": "The Home Depot",
+      "productUrl": "https://www.homedepot.com/s/pocket%20hole%20screws%201-1%2F4",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "chair-sandpaper",
+      "name": "Assorted grit sandpaper sheets (80/120/220), 12 pack",
+      "qty": 1,
+      "unit": "pack",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "8.97",
+      "currency": "USD",
+      "retailer": "Lowe's",
+      "productUrl": "https://www.lowes.com/search?searchTerm=assorted%20sandpaper%20sheets",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "chair-polyurethane",
+      "name": "Minwax Fast-Drying Polyurethane, clear satin, 1 qt",
+      "qty": 1,
+      "unit": "can",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "15.98",
+      "currency": "USD",
+      "retailer": "The Home Depot",
+      "productUrl": "https://www.homedepot.com/s/minwax%20polyurethane%20quart",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": [
+        {
+          "channel3ProductId": null,
+          "name": "Minwax Fast-Drying Polyurethane, clear satin, 1/2 pt",
+          "price": "8.98",
+          "currency": "USD",
+          "retailer": "The Home Depot",
+          "productUrl": "https://www.homedepot.com/s/minwax%20polyurethane%20half%20pint",
+          "imageUrl": null
+        }
+      ]
+    },
+    {
+      "id": "chair-drill",
+      "name": "20V cordless drill/driver kit",
+      "qty": 1,
+      "unit": "each",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "99.00",
+      "currency": "USD",
+      "retailer": "The Home Depot",
+      "productUrl": "https://www.homedepot.com/s/20v%20drill%20driver%20kit",
+      "imageUrl": null,
+      "ownedDefault": true,
+      "alternatives": []
+    },
+    {
+      "id": "chair-pocket-jig",
+      "name": "Kreg Pocket-Hole Jig 320",
+      "qty": 1,
+      "unit": "each",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "39.99",
+      "currency": "USD",
+      "retailer": "Amazon",
+      "productUrl": "https://www.amazon.com/s?k=kreg+pocket+hole+jig+320",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": [
+        {
+          "channel3ProductId": null,
+          "name": "Kreg Mini Pocket-Hole Jig",
+          "price": "19.99",
+          "currency": "USD",
+          "retailer": "Amazon",
+          "productUrl": "https://www.amazon.com/s?k=kreg+mini+pocket+hole+jig",
+          "imageUrl": null
+        }
+      ]
+    },
+    {
+      "id": "chair-miter-saw",
+      "name": "10 in single-bevel compound miter saw",
+      "qty": 1,
+      "unit": "each",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "129.00",
+      "currency": "USD",
+      "retailer": "Lowe's",
+      "productUrl": "https://www.lowes.com/search?searchTerm=10%20in%20compound%20miter%20saw",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": [
+        {
+          "channel3ProductId": null,
+          "name": "Miter box with 14 in back saw",
+          "price": "24.98",
+          "currency": "USD",
+          "retailer": "Lowe's",
+          "productUrl": "https://www.lowes.com/search?searchTerm=miter%20box%20with%20saw",
+          "imageUrl": null
+        },
+        {
+          "channel3ProductId": null,
+          "name": "7 1/4 in circular saw",
+          "price": "59.00",
+          "currency": "USD",
+          "retailer": "Lowe's",
+          "productUrl": "https://www.lowes.com/search?searchTerm=7-1%2F4%20circular%20saw",
+          "imageUrl": null
+        }
+      ]
+    },
+    {
+      "id": "chair-clamps",
+      "name": "6 in bar clamps, 4 pack",
+      "qty": 1,
+      "unit": "pack",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "24.98",
+      "currency": "USD",
+      "retailer": "The Home Depot",
+      "productUrl": "https://www.homedepot.com/s/6%20in%20bar%20clamp%204%20pack",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": [
+        {
+          "channel3ProductId": null,
+          "name": "6 in bar clamps, 2 pack",
+          "price": "12.98",
+          "currency": "USD",
+          "retailer": "The Home Depot",
+          "productUrl": "https://www.homedepot.com/s/6%20in%20bar%20clamp%202%20pack",
+          "imageUrl": null
+        }
+      ]
+    },
+    {
+      "id": "chair-tape-measure",
+      "name": "25 ft tape measure",
+      "qty": 1,
+      "unit": "each",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "9.97",
+      "currency": "USD",
+      "retailer": "Lowe's",
+      "productUrl": "https://www.lowes.com/search?searchTerm=25%20ft%20tape%20measure",
+      "imageUrl": null,
+      "ownedDefault": true,
+      "alternatives": []
+    },
+    {
+      "id": "chair-safety-glasses",
+      "name": "Clear safety glasses",
+      "qty": 1,
+      "unit": "each",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "4.98",
+      "currency": "USD",
+      "retailer": "The Home Depot",
+      "productUrl": "https://www.homedepot.com/s/safety%20glasses",
+      "imageUrl": null,
+      "ownedDefault": true,
+      "alternatives": []
+    }
+  ]
+}

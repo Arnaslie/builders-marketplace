@@ -1,0 +1,1320 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "DIY Wikipedia API",
+    "description": "Contract for issue #1. Fixture-backed; checkout routes are PayPal-shaped stubs.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Healthz",
+        "operationId": "healthz",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "List Projects",
+        "operationId": "listProjects",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectSummary"
+                  },
+                  "type": "array",
+                  "title": "Response Listprojects"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{slug}": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Project",
+        "operationId": "getProject",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recommendations": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Create Recommendation",
+        "operationId": "createRecommendation",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recommendation"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/build-cart": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Agent Build Cart",
+        "operationId": "buildCart",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuildCartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cart"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Invalid body or unknown owned line id"
+          }
+        }
+      }
+    },
+    "/checkout/orders": {
+      "post": {
+        "tags": [
+          "checkout"
+        ],
+        "summary": "Create Checkout Order",
+        "description": "Create a PayPal order for the cart the server builds from this request.\n\nThe client sends the same input as /agent/build-cart, not prices: the server recomputes the\ncart, so a tampered browser cannot set its own total.\n\nTODO(PAYMENTS ENGINEER): call POST /v2/checkout/orders on the PayPal sandbox with an OAuth\ntoken from PAYPAL_CLIENT_ID/PAYPAL_CLIENT_SECRET and return PayPal's response.",
+        "operationId": "createCheckoutOrder",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuildCartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayPalOrder"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Invalid body, unknown owned line id, or empty cart"
+          }
+        }
+      }
+    },
+    "/checkout/orders/{order_id}/capture": {
+      "post": {
+        "tags": [
+          "checkout"
+        ],
+        "summary": "Capture Checkout Order",
+        "description": "Capture an approved PayPal order and return our order record (fulfilment simulated).\n\n``order_id`` is the PayPal order id (the JS SDK passes it to onApprove as ``data.orderID``).\n\nTODO(PAYMENTS ENGINEER): call POST /v2/checkout/orders/{id}/capture on the sandbox, store the\ncapture id from purchase_units[0].payments.captures[0].id, and only then mark the order paid.",
+        "operationId": "captureCheckoutOrder",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Order already captured"
+          }
+        }
+      }
+    },
+    "/webhooks/paypal": {
+      "post": {
+        "tags": [
+          "checkout"
+        ],
+        "summary": "Paypal Webhook",
+        "description": "Accept a PayPal webhook event and log it.\n\nTODO(PAYMENTS ENGINEER): verify the signature (POST /v1/notifications/verify-webhook-signature)\nbefore trusting the event, and handle PAYMENT.CAPTURE.COMPLETED / DENIED.",
+        "operationId": "paypalWebhook",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Event"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookAck"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "BuildCartRequest": {
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "title": "Projectid"
+          },
+          "owned": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Owned",
+            "description": "MaterialLine ids the user already has; left out of the cart."
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{1,7}\\.\\d{2}$",
+                "description": "Decimal amount as a string with exactly two decimals (PayPal amount.value format).",
+                "examples": [
+                  "24.99"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget",
+            "description": "Optional cap on the cart subtotal, in the project currency."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "projectId"
+        ],
+        "title": "BuildCartRequest"
+      },
+      "Cart": {
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "title": "Projectid"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "description": "ISO 4217 code.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CartLine"
+            },
+            "type": "array",
+            "title": "Lines"
+          },
+          "swaps": {
+            "items": {
+              "$ref": "#/components/schemas/Swap"
+            },
+            "type": "array",
+            "title": "Swaps"
+          },
+          "skippedLineIds": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Skippedlineids",
+            "description": "Lines left out because the user owns them."
+          },
+          "subtotal": {
+            "type": "string",
+            "pattern": "^\\d{1,7}\\.\\d{2}$",
+            "title": "Subtotal",
+            "description": "Decimal amount as a string with exactly two decimals (PayPal amount.value format).",
+            "examples": [
+              "24.99"
+            ]
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{1,7}\\.\\d{2}$",
+                "description": "Decimal amount as a string with exactly two decimals (PayPal amount.value format).",
+                "examples": [
+                  "24.99"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget"
+          },
+          "withinBudget": {
+            "type": "boolean",
+            "title": "Withinbudget",
+            "description": "subtotal <= budget; always true when no budget was given."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "projectId",
+          "currency",
+          "lines",
+          "swaps",
+          "skippedLineIds",
+          "subtotal",
+          "budget",
+          "withinBudget"
+        ],
+        "title": "Cart"
+      },
+      "CartLine": {
+        "properties": {
+          "lineId": {
+            "type": "string",
+            "title": "Lineid"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "tool",
+              "material"
+            ],
+            "title": "Category"
+          },
+          "qty": {
+            "type": "integer",
+            "title": "Qty"
+          },
+          "unitPrice": {
+            "type": "string",
+            "pattern": "^\\d{1,7}\\.\\d{2}$",
+            "title": "Unitprice",
+            "description": "Decimal amount as a string with exactly two decimals (PayPal amount.value format).",
+            "examples": [
+              "24.99"
+            ]
+          },
+          "lineTotal": {
+            "type": "string",
+            "pattern": "^\\d{1,7}\\.\\d{2}$",
+            "title": "Linetotal",
+            "description": "Decimal amount as a string with exactly two decimals (PayPal amount.value format).",
+            "examples": [
+              "24.99"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "description": "ISO 4217 code.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "retailer": {
+            "type": "string",
+            "title": "Retailer"
+          },
+          "productUrl": {
+            "type": "string",
+            "title": "Producturl"
+          },
+          "channel3ProductId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel3Productid"
+          },
+          "swapped": {
+            "type": "boolean",
+            "title": "Swapped",
+            "description": "True when this line uses a cheaper alternative (see swaps)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lineId",
+          "name",
+          "category",
+          "qty",
+          "unitPrice",
+          "lineTotal",
+          "currency",
+          "retailer",
+          "productUrl",
+          "channel3ProductId",
+          "swapped"
+        ],
+        "title": "CartLine"
+      },
+      "DraftLine": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Name"
+          },
+          "qty": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Qty"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "tool",
+              "material"
+            ],
+            "title": "Category"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "qty",
+          "unit",
+          "category"
+        ],
+        "title": "DraftLine",
+        "description": "A material or tool as a contributor describes it: no prices yet (Channel3 fills them in)."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Health": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "Health"
+      },
+      "MaterialLine": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Stable within its project; used by owned[] and swaps."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "qty": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Qty"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit",
+            "examples": [
+              "board",
+              "pack",
+              "each"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "tool",
+              "material"
+            ],
+            "title": "Category"
+          },
+          "channel3ProductId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel3Productid"
+          },
+          "price": {
+            "type": "string",
+            "pattern": "^\\d{1,7}\\.\\d{2}$",
+            "title": "Price",
+            "description": "Unit price of the default product.",
+            "examples": [
+              "24.99"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "description": "ISO 4217 code.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "retailer": {
+            "type": "string",
+            "title": "Retailer"
+          },
+          "productUrl": {
+            "type": "string",
+            "title": "Producturl"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "ownedDefault": {
+            "type": "boolean",
+            "title": "Owneddefault",
+            "description": "UI default for the 'I own this' checkbox. The server only trusts owned[]."
+          },
+          "alternatives": {
+            "items": {
+              "$ref": "#/components/schemas/ProductOption"
+            },
+            "type": "array",
+            "title": "Alternatives",
+            "description": "Cheaper products the agent may swap in to meet a budget."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "qty",
+          "unit",
+          "category",
+          "channel3ProductId",
+          "price",
+          "currency",
+          "retailer",
+          "productUrl",
+          "imageUrl",
+          "ownedDefault",
+          "alternatives"
+        ],
+        "title": "MaterialLine",
+        "description": "One row of a project's materials-and-tools grid."
+      },
+      "Order": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "paypalOrderId": {
+            "type": "string",
+            "title": "Paypalorderid"
+          },
+          "paypalCaptureId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paypalcaptureid"
+          },
+          "projectId": {
+            "type": "string",
+            "title": "Projectid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "created",
+              "paid"
+            ],
+            "title": "Status"
+          },
+          "fulfilment": {
+            "type": "string",
+            "const": "simulated",
+            "title": "Fulfilment"
+          },
+          "total": {
+            "type": "string",
+            "pattern": "^\\d{1,7}\\.\\d{2}$",
+            "title": "Total",
+            "description": "Decimal amount as a string with exactly two decimals (PayPal amount.value format).",
+            "examples": [
+              "24.99"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "description": "ISO 4217 code.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/CartLine"
+            },
+            "type": "array",
+            "title": "Lines"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "paypalOrderId",
+          "paypalCaptureId",
+          "projectId",
+          "status",
+          "fulfilment",
+          "total",
+          "currency",
+          "lines"
+        ],
+        "title": "Order",
+        "description": "Our record of a checkout. The app is merchant of record; retailer fulfilment is simulated."
+      },
+      "PayPalAmount": {
+        "properties": {
+          "currency_code": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency Code",
+            "description": "ISO 4217 code.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "value": {
+            "type": "string",
+            "pattern": "^\\d{1,7}\\.\\d{2}$",
+            "title": "Value",
+            "description": "Decimal amount as a string with exactly two decimals (PayPal amount.value format).",
+            "examples": [
+              "24.99"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "currency_code",
+          "value"
+        ],
+        "title": "PayPalAmount"
+      },
+      "PayPalLink": {
+        "properties": {
+          "href": {
+            "type": "string",
+            "title": "Href"
+          },
+          "rel": {
+            "type": "string",
+            "title": "Rel"
+          },
+          "method": {
+            "type": "string",
+            "title": "Method"
+          }
+        },
+        "type": "object",
+        "required": [
+          "href",
+          "rel",
+          "method"
+        ],
+        "title": "PayPalLink"
+      },
+      "PayPalOrder": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "intent": {
+            "type": "string",
+            "const": "CAPTURE",
+            "title": "Intent"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "CREATED",
+              "APPROVED",
+              "COMPLETED"
+            ],
+            "title": "Status"
+          },
+          "purchase_units": {
+            "items": {
+              "$ref": "#/components/schemas/PayPalPurchaseUnit"
+            },
+            "type": "array",
+            "title": "Purchase Units"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/PayPalLink"
+            },
+            "type": "array",
+            "title": "Links"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "intent",
+          "status",
+          "purchase_units",
+          "links"
+        ],
+        "title": "PayPalOrder",
+        "description": "Subset of the PayPal Orders v2 create-order response the frontend needs (id for the JS SDK)."
+      },
+      "PayPalPurchaseUnit": {
+        "properties": {
+          "reference_id": {
+            "type": "string",
+            "title": "Reference Id"
+          },
+          "amount": {
+            "$ref": "#/components/schemas/PayPalAmount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reference_id",
+          "amount"
+        ],
+        "title": "PayPalPurchaseUnit"
+      },
+      "ProductOption": {
+        "properties": {
+          "channel3ProductId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel3Productid",
+            "description": "Channel3 product id; null until the Channel3 client fills it in."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "price": {
+            "type": "string",
+            "pattern": "^\\d{1,7}\\.\\d{2}$",
+            "title": "Price",
+            "description": "Unit price.",
+            "examples": [
+              "24.99"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "description": "ISO 4217 code.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "retailer": {
+            "type": "string",
+            "title": "Retailer"
+          },
+          "productUrl": {
+            "type": "string",
+            "title": "Producturl"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "channel3ProductId",
+          "name",
+          "price",
+          "currency",
+          "retailer",
+          "productUrl",
+          "imageUrl"
+        ],
+        "title": "ProductOption",
+        "description": "One purchasable product: the default pick for a line, or a cheaper alternative."
+      },
+      "Project": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "published",
+              "draft"
+            ],
+            "title": "Status"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "beginner",
+              "intermediate",
+              "advanced"
+            ],
+            "title": "Difficulty"
+          },
+          "estimatedHours": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Estimatedhours"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "description": "ISO 4217 code.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "materials": {
+            "items": {
+              "$ref": "#/components/schemas/MaterialLine"
+            },
+            "type": "array",
+            "title": "Materials"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "status",
+          "title",
+          "summary",
+          "difficulty",
+          "estimatedHours",
+          "imageUrl",
+          "currency",
+          "steps",
+          "materials"
+        ],
+        "title": "Project"
+      },
+      "ProjectSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "difficulty": {
+            "type": "string",
+            "enum": [
+              "beginner",
+              "intermediate",
+              "advanced"
+            ],
+            "title": "Difficulty"
+          },
+          "estimatedHours": {
+            "type": "integer",
+            "title": "Estimatedhours"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "lineCount": {
+            "type": "integer",
+            "title": "Linecount"
+          },
+          "estimatedTotal": {
+            "type": "string",
+            "pattern": "^\\d{1,7}\\.\\d{2}$",
+            "title": "Estimatedtotal",
+            "description": "Sum of qty x price over every line, owned or not.",
+            "examples": [
+              "24.99"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "description": "ISO 4217 code.",
+            "examples": [
+              "USD"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "summary",
+          "difficulty",
+          "estimatedHours",
+          "imageUrl",
+          "lineCount",
+          "estimatedTotal",
+          "currency"
+        ],
+        "title": "ProjectSummary",
+        "description": "Gallery card: a Project without its steps and materials."
+      },
+      "Recommendation": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "const": "draft",
+            "title": "Status"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "materials": {
+            "items": {
+              "$ref": "#/components/schemas/DraftLine"
+            },
+            "type": "array",
+            "title": "Materials"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "slug",
+          "title",
+          "summary",
+          "steps",
+          "materials",
+          "createdAt"
+        ],
+        "title": "Recommendation"
+      },
+      "RecommendationRequest": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 3,
+            "title": "Title"
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Summary"
+          },
+          "steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "materials": {
+            "items": {
+              "$ref": "#/components/schemas/DraftLine"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Materials"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "summary",
+          "materials"
+        ],
+        "title": "RecommendationRequest"
+      },
+      "Swap": {
+        "properties": {
+          "lineId": {
+            "type": "string",
+            "title": "Lineid"
+          },
+          "from": {
+            "$ref": "#/components/schemas/ProductOption"
+          },
+          "to": {
+            "$ref": "#/components/schemas/ProductOption"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "savings": {
+            "type": "string",
+            "pattern": "^\\d{1,7}\\.\\d{2}$",
+            "title": "Savings",
+            "description": "Saving on the whole line (unit saving x qty).",
+            "examples": [
+              "24.99"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lineId",
+          "from",
+          "to",
+          "reason",
+          "savings"
+        ],
+        "title": "Swap"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WebhookAck": {
+        "properties": {
+          "received": {
+            "type": "boolean",
+            "const": true,
+            "title": "Received"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "received"
+        ],
+        "title": "WebhookAck"
+      }
+    }
+  }
+}

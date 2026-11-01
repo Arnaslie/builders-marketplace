@@ -1,0 +1,59 @@
+{
+  "id": "proj-squat-rack",
+  "slug": "wooden-squat-rack",
+  "status": "published",
+  "title": "Wooden Squat Rack",
+  "summary": "STUB: a home-gym squat stand from 2x6 lumber and steel J-hooks. Full materials list and steps still to come.",
+  "difficulty": "intermediate",
+  "estimatedHours": 10,
+  "imageUrl": null,
+  "currency": "USD",
+  "steps": [],
+  "materials": [
+    {
+      "id": "rack-2x6",
+      "name": "2 in x 6 in x 8 ft pressure-treated lumber",
+      "qty": 6,
+      "unit": "board",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "8.98",
+      "currency": "USD",
+      "retailer": "The Home Depot",
+      "productUrl": "https://www.homedepot.com/s/2x6%208%20ft%20pressure%20treated",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "rack-lag-screws",
+      "name": "3/8 in x 4 in hex lag screws, 25 pack",
+      "qty": 1,
+      "unit": "pack",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "14.97",
+      "currency": "USD",
+      "retailer": "Lowe's",
+      "productUrl": "https://www.lowes.com/search?searchTerm=3%2F8%20x%204%20lag%20screw",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "rack-circular-saw",
+      "name": "7 1/4 in circular saw",
+      "qty": 1,
+      "unit": "each",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "59.00",
+      "currency": "USD",
+      "retailer": "Lowe's",
+      "productUrl": "https://www.lowes.com/search?searchTerm=7-1%2F4%20circular%20saw",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    }
+  ]
+}
