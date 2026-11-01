@@ -4,3 +4,5 @@
 node_modules/
 .next/
 next-env.d.ts
+# verify-diy-wikipedia skill: disposable app copies and proof artifacts
+.verify/
