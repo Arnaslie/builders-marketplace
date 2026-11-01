@@ -32,11 +32,14 @@ Preconditions:
   is `200`. Then each of these has a match in `evidence/project.body`:
   `grep -o '<h1>Simple Wooden Chair</h1>'`, `grep -o 'Materials and tools'`,
   `grep -o 'id="materials-grid"'`, `grep -o 'Sand from 80 to 220 grit'`.
-- **Grid proof.** Run `$V shot "$RUN" /projects/simple-wooden-chair project`. `evidence/project.png`
-  shows the title, a table with 12 rows (columns Item, Category, Qty, Unit, Unit price, Retailer,
-  Already own it, Line total) and `Total to buy: $` below it. With the fixture defaults the drill,
-  tape measure and safety glasses are ticked as owned, and the total is `$250.67`
-  (3x3.28 + 2x4.98 + 4.97 + 6.98 + 8.97 + 15.98 + 39.99 + 129.00 + 24.98).
+- **Grid proof (required for any PR touching the grid).** Run `$V drive "$RUN" materials-grid`.
+  It must print `drive materials-grid: PASS` and exit 0. In real Chromium it asserts: 12 rows;
+  3 boxes ticked (drill, tape measure, safety glasses); total `$250.67`
+  (3x3.28 + 2x4.98 + 4.97 + 6.98 + 8.97 + 15.98 + 39.99 + 129.00 + 24.98); unticking the drill
+  gives `$349.67`; editing row 0 qty 3 -> 5 gives `$356.23`; zero console errors. Evidence:
+  `evidence/materials-grid.json`, `materials-grid-loaded.png`, `materials-grid-edited.png`.
+  `$V shot "$RUN" /projects/simple-wooden-chair project` is still taken for the page layout, but
+  it shows the grid **empty** (see Gotchas); it is not grid proof.
 - **Unknown project.** Run `$V get "$RUN" /projects/no-such-project project404`.
   `evidence/project404.status` is `404`, and `grep -o 'This page could not be found'` on the
   body has one match.
@@ -55,9 +58,10 @@ Preconditions:
 - AG Grid renders in the browser. The `get` body contains the grid container and the row data
   inside the `self.__next_f.push(...)` RSC script, but not the rendered rows: a grep for an item
   name proves the data reached the page, not that a row is visible. Use the screenshot for that.
-- The screenshot is a load-only capture. Editing a quantity, ticking `Already own it`, and the total
-  recomputing are NOT covered: that needs a real browser driver (e.g. Playwright, not installed).
-  Do not report them as verified from `get`/`shot` alone.
+- `shot` (Firefox `--screenshot`) captures before React hydrates, so the grid appears as an empty
+  bordered box and the total (server-rendered) still reads `$250.67`. Found 2026-11-01 on AG Grid
+  36.2.0. Rows, editing and the recomputed total are proven only by `$V drive "$RUN" materials-grid`.
+- AG Grid 36 has no `.ag-center-cols-container`; select rows with `#materials-grid .ag-row[row-id]`.
 - The expected `$250.67` is for the unedited fixture; recompute it if `chair.json` changes.
 - `/projects/[slug]` returns 404 through `notFound()`. Adding a `loading.tsx` can flush a 200
   status before `notFound()` runs; if the status ever changes, check for one.
