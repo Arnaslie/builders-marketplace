@@ -1,0 +1,1 @@
+"""DIY Wikipedia API service."""
