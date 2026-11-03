@@ -363,3 +363,31 @@ a:visited .banner {
   overflow-x: auto;
   font-size: 0.875em;
 }
+
+/* Cart and order record: a 1994 bordered <table> (border=1 cellpadding=4). */
+.cart-table {
+  border-collapse: collapse;
+  border: 2px outset var(--color-chrome);
+  margin: var(--space-3) 0;
+}
+
+.cart-table th,
+.cart-table td {
+  border: 1px inset var(--color-chrome);
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.cart-table thead th {
+  background: var(--color-chrome);
+}
+
+.cart-table .num {
+  text-align: right;
+}
+
+/* PayPal renders its buttons into this box; it sizes them between 150px and 750px wide. */
+.paypal-buttons {
+  max-width: 25rem;
+}

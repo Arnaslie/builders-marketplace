@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "DIY Wikipedia API",
-    "description": "Contract for issue #1. Fixture-backed; checkout routes are PayPal-shaped stubs.",
+    "description": "Contract for issue #1. Fixture-backed catalogue; checkout calls PayPal Orders v2.",
     "version": "0.1.0"
   },
   "paths": {
@@ -175,13 +175,38 @@
         }
       }
     },
+    "/checkout/config": {
+      "get": {
+        "tags": [
+          "checkout"
+        ],
+        "summary": "Get Checkout Config",
+        "description": "Public settings for the PayPal JS SDK script tag. Never includes the client secret.",
+        "operationId": "getCheckoutConfig",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutConfig"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "PayPal credentials are not set on the server"
+          }
+        }
+      }
+    },
     "/checkout/orders": {
       "post": {
         "tags": [
           "checkout"
         ],
         "summary": "Create Checkout Order",
-        "description": "Create a PayPal order for the cart the server builds from this request.\n\nThe client sends the same input as /agent/build-cart, not prices: the server recomputes the\ncart, so a tampered browser cannot set its own total.\n\nTODO(PAYMENTS ENGINEER): call POST /v2/checkout/orders on the PayPal sandbox with an OAuth\ntoken from PAYPAL_CLIENT_ID/PAYPAL_CLIENT_SECRET and return PayPal's response.",
+        "description": "Create a PayPal order for the cart the server builds from this request.\n\nThe client sends the same input as /agent/build-cart, not prices: the server recomputes the\ncart, so a tampered browser cannot set its own total.",
         "operationId": "createCheckoutOrder",
         "requestBody": {
           "content": {
@@ -209,18 +234,24 @@
           },
           "422": {
             "description": "Invalid body, unknown owned line id, or empty cart"
+          },
+          "502": {
+            "description": "PayPal rejected the request or did not respond; no order was stored"
+          },
+          "503": {
+            "description": "PayPal credentials are not set on the server"
           }
         }
       }
     },
-    "/checkout/orders/{order_id}/capture": {
-      "post": {
+    "/checkout/orders/{order_id}": {
+      "get": {
         "tags": [
           "checkout"
         ],
-        "summary": "Capture Checkout Order",
-        "description": "Capture an approved PayPal order and return our order record (fulfilment simulated).\n\n``order_id`` is the PayPal order id (the JS SDK passes it to onApprove as ``data.orderID``).\n\nTODO(PAYMENTS ENGINEER): call POST /v2/checkout/orders/{id}/capture on the sandbox, store the\ncapture id from purchase_units[0].payments.captures[0].id, and only then mark the order paid.",
-        "operationId": "captureCheckoutOrder",
+        "summary": "Get Checkout Order",
+        "description": "Our order record, by PayPal order id (for the confirmation page). Memory only: an API\nrestart forgets it.",
+        "operationId": "getCheckoutOrder",
         "parameters": [
           {
             "name": "order_id",
@@ -247,7 +278,72 @@
             "description": "Not found"
           },
           "422": {
-            "description": "Order already captured"
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/checkout/orders/{order_id}/capture": {
+      "post": {
+        "tags": [
+          "checkout"
+        ],
+        "summary": "Capture Checkout Order",
+        "description": "Capture an approved PayPal order and return our order record (fulfilment simulated).\n\n``order_id`` is the PayPal order id (the JS SDK passes it to onApprove as ``data.orderID``).\nIdempotent: capturing a paid order returns the stored record without calling PayPal again.\nThe order is marked paid only when PayPal reports the capture COMPLETED.",
+        "operationId": "captureCheckoutOrder",
+        "parameters": [
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "402": {
+            "description": "INSTRUMENT_DECLINED: restart the PayPal flow so the buyer picks another source"
+          },
+          "409": {
+            "description": "Buyer has not approved the order, or the capture is not COMPLETED (not marked paid)"
+          },
+          "502": {
+            "description": "PayPal rejected the capture or did not respond; the order is not marked paid"
+          },
+          "503": {
+            "description": "PayPal credentials are not set on the server"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
           }
         }
       }
@@ -510,6 +606,41 @@
           "swapped"
         ],
         "title": "CartLine"
+      },
+      "CheckoutConfig": {
+        "properties": {
+          "clientId": {
+            "type": "string",
+            "title": "Clientid",
+            "description": "PayPal REST client id for the JS SDK script tag (not a secret)."
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "description": "ISO 4217 code.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "env": {
+            "type": "string",
+            "enum": [
+              "sandbox",
+              "live"
+            ],
+            "title": "Env"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "clientId",
+          "currency",
+          "env"
+        ],
+        "title": "CheckoutConfig",
+        "description": "What the browser needs to load the PayPal JS SDK. The client id is public by design."
       },
       "DraftLine": {
         "properties": {
