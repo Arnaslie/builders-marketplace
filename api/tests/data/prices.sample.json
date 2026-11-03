@@ -1,0 +1,49 @@
+{
+  "_about": "Test sample of contract/prices.json. Not real Channel3 data.",
+  "misses": {
+    "proj-knife": {
+      "knife-anvil": {
+        "fetched_at": "2026-11-03T12:00:00Z",
+        "query": "steel bench block anvil 4x4",
+        "reason": "3 product(s), none with an in-stock new USD offer"
+      }
+    }
+  },
+  "projects": {
+    "proj-chair": {
+      "chair-hammer": {
+        "channel3_product_id": "stale1",
+        "currency": "USD",
+        "fetched_at": "2026-11-03T12:00:00Z",
+        "image_url": null,
+        "price": "12.00",
+        "query": "claw hammer",
+        "retailer": "example.com",
+        "title": "Line that no longer exists in the fixture",
+        "url": "https://example.com/hammer"
+      },
+      "chair-pine-2x2": {
+        "channel3_product_id": "c3pine22",
+        "currency": "USD",
+        "fetched_at": "2026-11-03T12:00:00Z",
+        "image_url": "https://cdn.example.com/pine-2x2.png",
+        "price": "3.47",
+        "query": "2x2 pine furring strip 8 ft",
+        "retailer": "homedepot.com",
+        "title": "2 in. x 2 in. x 8 ft. Furring Strip Board",
+        "url": "https://www.homedepot.com/p/furring-strip-2x2"
+      },
+      "chair-wood-glue": {
+        "channel3_product_id": "c3glueeur",
+        "currency": "EUR",
+        "fetched_at": "2026-11-03T12:00:00Z",
+        "image_url": null,
+        "price": "6.10",
+        "query": "Titebond II wood glue 8 oz",
+        "retailer": "example.de",
+        "title": "Wrong-currency entry the store must ignore",
+        "url": "https://example.de/titebond"
+      }
+    }
+  }
+}

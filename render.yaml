@@ -16,6 +16,10 @@ services:
         value: "20"                              # matches package.json engines.node
       - key: PAYPAL_ENV
         value: sandbox
+      # The API service URL. Next inlines NEXT_PUBLIC_* at BUILD time, so a change
+      # needs a rebuild. Unset = fixture mode (lib/api/client.ts).
+      - key: NEXT_PUBLIC_API_URL
+        value: https://diy-wikipedia-api.onrender.com
       # Secrets: sync:false means Render prompts for the value on first Blueprint
       # creation only; later changes are made in the dashboard (see spec).
       - key: PAYPAL_CLIENT_ID
