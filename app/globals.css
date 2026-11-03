@@ -400,22 +400,34 @@ a:visited .banner {
   overflow-x: auto;
 }
 
+.swap-list li {
+  margin-bottom: var(--space-2);
+}
+
+/* Cart and order record: a 1994 bordered <table> (border=1 cellpadding=4). */
 .cart-table {
   border-collapse: collapse;
-  width: 100%;
+  border: 2px outset var(--color-chrome);
+  margin: var(--space-3) 0;
 }
 
 .cart-table th,
 .cart-table td {
-  border: 1px solid var(--color-chrome-dark);
-  padding: 2px 6px;
+  border: 1px inset var(--color-chrome);
+  padding: 4px 6px;
   text-align: left;
+  vertical-align: top;
 }
 
-.cart-table th {
+.cart-table thead th {
   background: var(--color-chrome);
 }
 
-.swap-list li {
-  margin-bottom: var(--space-2);
+.cart-table .num {
+  text-align: right;
+}
+
+/* PayPal renders its buttons into this box; it sizes them between 150px and 750px wide. */
+.paypal-buttons {
+  max-width: 25rem;
 }

@@ -89,6 +89,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/checkout/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Checkout Config
+         * @description Public settings for the PayPal JS SDK script tag. Never includes the client secret.
+         */
+        get: operations["getCheckoutConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/checkout/orders": {
         parameters: {
             query?: never;
@@ -104,11 +124,29 @@ export interface paths {
          *
          *     The client sends the same input as /agent/build-cart, not prices: the server recomputes the
          *     cart, so a tampered browser cannot set its own total.
-         *
-         *     TODO(PAYMENTS ENGINEER): call POST /v2/checkout/orders on the PayPal sandbox with an OAuth
-         *     token from PAYPAL_CLIENT_ID/PAYPAL_CLIENT_SECRET and return PayPal's response.
          */
         post: operations["createCheckoutOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/checkout/orders/{order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Checkout Order
+         * @description Our order record, by PayPal order id (for the confirmation page). Memory only: an API
+         *     restart forgets it.
+         */
+        get: operations["getCheckoutOrder"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -129,9 +167,8 @@ export interface paths {
          * @description Capture an approved PayPal order and return our order record (fulfilment simulated).
          *
          *     ``order_id`` is the PayPal order id (the JS SDK passes it to onApprove as ``data.orderID``).
-         *
-         *     TODO(PAYMENTS ENGINEER): call POST /v2/checkout/orders/{id}/capture on the sandbox, store the
-         *     capture id from purchase_units[0].payments.captures[0].id, and only then mark the order paid.
+         *     Idempotent: capturing a paid order returns the stored record without calling PayPal again.
+         *     The order is marked paid only when PayPal reports the capture COMPLETED.
          */
         post: operations["captureCheckoutOrder"];
         delete?: never;
@@ -268,6 +305,28 @@ export interface components {
              * @description One-sentence reason the agent gave for swapping this line; null when the line is unchanged or the agent was not used.
              */
             reason?: string | null;
+        };
+        /**
+         * CheckoutConfig
+         * @description What the browser needs to load the PayPal JS SDK. The client id is public by design.
+         */
+        CheckoutConfig: {
+            /**
+             * Clientid
+             * @description PayPal REST client id for the JS SDK script tag (not a secret).
+             */
+            clientId: string;
+            /**
+             * Currency
+             * @description ISO 4217 code.
+             * @example USD
+             */
+            currency: string;
+            /**
+             * Env
+             * @enum {string}
+             */
+            env: "sandbox" | "live";
         };
         /**
          * DraftLine
@@ -779,6 +838,33 @@ export interface operations {
             };
         };
     };
+    getCheckoutConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutConfig"];
+                };
+            };
+            /** @description PayPal credentials are not set on the server */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     createCheckoutOrder: {
         parameters: {
             query?: never;
@@ -815,9 +901,23 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description PayPal rejected the request or did not respond; no order was stored */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PayPal credentials are not set on the server */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
-    captureCheckoutOrder: {
+    getCheckoutOrder: {
         parameters: {
             query?: never;
             header?: never;
@@ -844,8 +944,76 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Order already captured */
+            /** @description Validation Error */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    captureCheckoutOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                order_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Order"];
+                };
+            };
+            /** @description INSTRUMENT_DECLINED: restart the PayPal flow so the buyer picks another source */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Buyer has not approved the order, or the capture is not COMPLETED (not marked paid) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description PayPal rejected the capture or did not respond; the order is not marked paid */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description PayPal credentials are not set on the server */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

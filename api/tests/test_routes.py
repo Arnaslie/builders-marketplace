@@ -131,7 +131,10 @@ def test_checkout_create_and_capture(client: TestClient) -> None:
     assert paid["paypalCaptureId"]
     assert paid["total"] == "250.67"
 
-    assert client.post(f"/checkout/orders/{order['id']}/capture").status_code == 422
+    # Capture is idempotent now (PayPal allows one capture per order): a repeat returns the record.
+    again = client.post(f"/checkout/orders/{order['id']}/capture")
+    assert again.status_code == 200
+    assert again.json() == paid
 
 
 def test_checkout_empty_cart_422(client: TestClient) -> None:

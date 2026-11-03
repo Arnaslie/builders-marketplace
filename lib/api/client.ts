@@ -14,7 +14,12 @@ export type MaterialLine = components["schemas"]["MaterialLine"];
 export type DraftLine = components["schemas"]["DraftLine"];
 export type RecommendationRequest = components["schemas"]["RecommendationRequest"];
 export type Recommendation = components["schemas"]["Recommendation"];
+export type BuildCartRequest = components["schemas"]["BuildCartRequest"];
 export type Cart = components["schemas"]["Cart"];
+export type CartLine = components["schemas"]["CartLine"];
+export type CheckoutConfig = components["schemas"]["CheckoutConfig"];
+export type Order = components["schemas"]["Order"];
+export type PayPalOrder = components["schemas"]["PayPalOrder"];
 
 // Next inlines NEXT_PUBLIC_* at build time, so this works in server and client components.
 const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") || undefined;
@@ -104,27 +109,67 @@ export async function submitRecommendation(draft: RecommendationRequest): Promis
   return { kind: "saved", recommendation: (await res.json()) as Recommendation };
 }
 
-export type BuildCartInput = { projectId: string; owned: string[]; budget?: string };
+// --- Cart and PayPal checkout -------------------------------------------------------------
+// These need the API: there is no fixture fallback for payments. Callers check usingApi first.
 
-// POST /agent/build-cart. The server computes every price and total; this only passes the
-// user's choices through. There is no fixture fallback: a cart needs the API.
-export async function buildCart(input: BuildCartInput): Promise<Cart> {
-  if (!usingApi) throw new Error("The shopping agent needs the API (NEXT_PUBLIC_API_URL is unset).");
-  const res = await apiFetch("/agent/build-cart", {
+// An API error with the HTTP status and FastAPI's string detail, so the PayPal buttons can tell
+// a declined card (402, restart the flow) from everything else.
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly detail: string,
+  ) {
+    super(detail ? `HTTP ${status}: ${detail}` : `HTTP ${status}`);
+  }
+}
+
+async function postJson<T>(path: string, body?: unknown): Promise<T> {
+  const res = await apiFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input), // budget is omitted when undefined
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!res.ok) {
-    let detail = "";
-    try {
-      const body = (await res.json()) as { detail?: unknown };
-      if (typeof body.detail === "string") detail = `: ${body.detail}`;
-      else if (Array.isArray(body.detail) && body.detail[0]?.msg) detail = `: ${body.detail[0].msg}`;
-    } catch {
-      // Non-JSON error body; the status code is enough.
-    }
-    throw new Error(`The shopping agent request failed (HTTP ${res.status})${detail}`);
+  if (!res.ok) throw await apiError(res);
+  return (await res.json()) as T;
+}
+
+async function apiError(res: Response): Promise<ApiError> {
+  let detail = "";
+  try {
+    const body = (await res.json()) as { detail?: unknown };
+    if (typeof body.detail === "string") detail = body.detail;
+    else if (Array.isArray(body.detail) && body.detail[0]?.msg) detail = String(body.detail[0].msg);
+  } catch {
+    // Non-JSON error body; the status code is enough.
   }
-  return (await res.json()) as Cart;
+  return new ApiError(res.status, detail);
+}
+
+export function buildCart(request: BuildCartRequest): Promise<Cart> {
+  return postJson<Cart>("/agent/build-cart", request);
+}
+
+// null when the server has no PayPal credentials (503), so the page can say so plainly.
+export async function getCheckoutConfig(): Promise<CheckoutConfig | null> {
+  const res = await apiFetch("/checkout/config");
+  if (res.status === 503) return null;
+  if (!res.ok) throw await apiError(res);
+  return (await res.json()) as CheckoutConfig;
+}
+
+// The server rebuilds the cart from the same request and creates the PayPal order for its total.
+export function createCheckoutOrder(request: BuildCartRequest): Promise<PayPalOrder> {
+  return postJson<PayPalOrder>("/checkout/orders", request);
+}
+
+export function captureCheckoutOrder(paypalOrderId: string): Promise<Order> {
+  return postJson<Order>(`/checkout/orders/${encodeURIComponent(paypalOrderId)}/capture`);
+}
+
+// Returns null for an unknown order (the API keeps orders in memory; a restart forgets them).
+export async function getCheckoutOrder(paypalOrderId: string): Promise<Order | null> {
+  const res = await apiFetch(`/checkout/orders/${encodeURIComponent(paypalOrderId)}`);
+  if (res.status === 404) return null;
+  if (!res.ok) throw await apiError(res);
+  return (await res.json()) as Order;
 }
