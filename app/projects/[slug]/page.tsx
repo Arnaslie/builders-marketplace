@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MaterialsGrid } from "../../../components/materials-grid";
 import { ProjectImage } from "../../../components/project-image";
@@ -20,24 +21,24 @@ export default async function ProjectPage({ params }: Props) {
   if (!project) notFound(); // renders the 404 page with HTTP status 404
 
   return (
-    <main className="container">
-      <section className="hero">
-        <ProjectImage title={project.title} imageUrl={project.imageUrl} />
-        <div>
-          <h1>{project.title}</h1>
-          {isMockProject(project.id) && (
-            <p className="sample-note">Sample project: placeholder materials and prices, not a real listing.</p>
-          )}
-          <p className="lede">{project.summary}</p>
-          <ul className="meta">
-            <li className="badge">{project.difficulty}</li>
-            <li className="badge">{project.estimatedHours} h</li>
-            <li className="badge">{project.materials.length} items</li>
-          </ul>
-        </div>
-      </section>
+    <main>
+      <h1>{project.title}</h1>
+      {isMockProject(project.id) && (
+        <p className="sample-note">
+          <b>NOTE:</b> Sample project: placeholder materials and prices, not a real listing.
+        </p>
+      )}
+      {/* Only a real picture is shown; a lettered placeholder would not belong on a 1994 page. */}
+      {project.imageUrl && <ProjectImage title={project.title} imageUrl={project.imageUrl} />}
+      <p>{project.summary}</p>
+      <ul>
+        <li>Difficulty: {project.difficulty}</li>
+        <li>Time: {project.estimatedHours} hours</li>
+        <li>Items: {project.materials.length}</li>
+      </ul>
+      <hr />
 
-      <h2>Materials and tools</h2>
+      <h2>Materials and Tools</h2>
       <MaterialsGrid lines={project.materials} currency={project.currency} />
 
       <h2>Steps</h2>
@@ -46,6 +47,10 @@ export default async function ProjectPage({ params }: Props) {
           <li key={step}>{step}</li>
         ))}
       </ol>
+      <hr />
+      <p>
+        <Link href="/">Return to the Project Index</Link>
+      </p>
     </main>
   );
 }

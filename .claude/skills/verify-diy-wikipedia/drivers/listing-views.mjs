@@ -1,63 +1,79 @@
-// Real-browser check of the paginated listing and its UI proposals (Playwright, Chromium).
+// Real-browser check of the 1994-style site design (Playwright, Chromium).
 // Run through verify.sh:  verify.sh drive RUN_ID listing-views
 // Usage (direct): node listing-views.mjs <base-url> <evidence-dir>
-// For every view at desktop (1366) and phone (375) width it records: card count, link targets,
-// horizontal overflow, console errors and a full-page screenshot. It also checks that Lenis is
-// running (html.lenis) and that a wheel scroll moves the page. Exits 1 on any failed expectation.
+// At desktop (1366) and phone (375) width it loads index pages 1 and 5, a project page and the
+// recommend page, and records: the masthead seal and welcome line, exactly one <h1>, project link
+// and banner counts on index pages, the Times font, horizontal overflow, console errors and a
+// full-page screenshot. On index pages it also checks that Lenis is running (html.lenis) and that
+// a wheel scroll moves the page. Exits 1 on any failed expectation.
 import { chromium } from "playwright";
 import { writeFileSync } from "node:fs";
 
 const [base, out] = process.argv.slice(2);
-const VIEWS = ["classic", "industrial", "offgrid", "postmodern"];
+const PAGES = [
+  { name: "index-p1", path: "/", index: true },
+  { name: "index-p5", path: "/?page=5", index: true },
+  { name: "project", path: "/projects/simple-wooden-chair", index: false },
+  { name: "recommend", path: "/recommend", index: false },
+];
 const WIDTHS = { desktop: 1366, phone: 375 };
 
 const browser = await chromium.launch();
 const results = [];
 const failures = [];
 
-for (const view of VIEWS) {
+for (const target of PAGES) {
   for (const [label, width] of Object.entries(WIDTHS)) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     const errors = [];
     page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
     page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
 
-    const url = `${base}/?view=${view}&page=2`;
-    const res = await page.goto(url, { waitUntil: "networkidle" });
-    const facts = await page.evaluate((v) => {
-      const main = document.querySelector(`main.listing--${v}`);
-      const links = [...document.querySelectorAll("main a[href^='/projects/']")].map((a) => a.getAttribute("href"));
+    const res = await page.goto(`${base}${target.path}`, { waitUntil: "networkidle" });
+    const facts = await page.evaluate(() => {
+      const links = [...document.querySelectorAll("main a[href^='/projects/']")];
       return {
-        wrapper: Boolean(main),
-        cards: new Set(links).size,
-        h2InCards: document.querySelectorAll("main a[href^='/projects/'] h2").length,
+        seal: Boolean(document.querySelector(".masthead svg.seal")),
+        welcome: document.querySelector(".masthead-title")?.textContent?.trim() ?? "",
+        h1s: document.querySelectorAll("h1").length,
+        cards: new Set(links.map((a) => a.getAttribute("href"))).size,
+        banners: document.querySelectorAll("main a[href^='/projects/'] .banner").length,
+        font: getComputedStyle(document.body).fontFamily,
+        edition: /Current Edition for /.test(document.querySelector(".site-footer")?.textContent ?? ""),
         overflowX: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         lenis: document.documentElement.classList.contains("lenis"),
-        sampleTags: document.querySelectorAll("main a[href^='/projects/'] li").length > 0,
       };
-    }, view);
+    });
 
-    // Lenis glides the scroll over several frames; wait, then read the settled position.
-    await page.mouse.move(width / 2, 450);
-    await page.mouse.wheel(0, 800);
-    await page.waitForTimeout(1200);
-    facts.scrolledY = await page.evaluate(() => Math.round(window.scrollY));
-    await page.evaluate(() => window.scrollTo(0, 0));
-    await page.waitForTimeout(300);
+    if (target.index) {
+      // Lenis glides the scroll over several frames; wait, then read the settled position.
+      await page.mouse.move(width / 2, 450);
+      await page.mouse.wheel(0, 800);
+      await page.waitForTimeout(1200);
+      facts.scrolledY = await page.evaluate(() => Math.round(window.scrollY));
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(300);
+    }
 
-    const shot = `listing-${view}-${label}.png`;
+    const shot = `site-${target.name}-${label}.png`;
     await page.screenshot({ path: `${out}/${shot}`, fullPage: true });
 
-    const row = { view, label, status: res?.status(), ...facts, errors, shot };
+    const row = { page: target.name, label, status: res?.status(), ...facts, errors, shot };
     results.push(row);
-    const tag = `${view}/${label}`;
+    const tag = `${target.name}/${label}`;
     if (row.status !== 200) failures.push(`${tag}: HTTP ${row.status}`);
-    if (!row.wrapper) failures.push(`${tag}: missing main.listing--${view}`);
-    if (row.cards !== 10) failures.push(`${tag}: ${row.cards} cards, expected 10`);
-    if (row.h2InCards !== 10) failures.push(`${tag}: ${row.h2InCards} card <h2>s, expected 10`);
+    if (!row.seal) failures.push(`${tag}: masthead seal missing`);
+    if (row.welcome !== "Welcome to the DIY Wikipedia Server") failures.push(`${tag}: welcome line is "${row.welcome}"`);
+    if (row.h1s !== 1) failures.push(`${tag}: ${row.h1s} <h1>s, expected 1`);
+    if (!/Times/.test(row.font)) failures.push(`${tag}: body font is ${row.font}`);
+    if (!row.edition) failures.push(`${tag}: Current Edition dateline missing`);
     if (row.overflowX > 0) failures.push(`${tag}: horizontal overflow ${row.overflowX}px`);
     if (!row.lenis) failures.push(`${tag}: Lenis not active (no html.lenis)`);
-    if (row.scrolledY < 100) failures.push(`${tag}: wheel scroll moved only ${row.scrolledY}px`);
+    if (target.index) {
+      if (row.cards !== 10) failures.push(`${tag}: ${row.cards} project links, expected 10`);
+      if (row.banners !== 10) failures.push(`${tag}: ${row.banners} banners inside project links, expected 10`);
+      if (row.scrolledY < 100) failures.push(`${tag}: wheel scroll moved only ${row.scrolledY}px`);
+    }
     if (errors.length) failures.push(`${tag}: console errors: ${errors.join(" | ")}`);
     await page.close();
   }
@@ -66,7 +82,7 @@ for (const view of VIEWS) {
 await browser.close();
 writeFileSync(`${out}/listing-views.json`, JSON.stringify({ results, failures }, null, 2));
 for (const r of results) {
-  console.log(`${r.view.padEnd(10)} ${r.label.padEnd(7)} status=${r.status} cards=${r.cards} h2=${r.h2InCards} overflowX=${r.overflowX} lenis=${r.lenis} scrolledY=${r.scrolledY} errors=${r.errors.length}`);
+  console.log(`${r.page.padEnd(10)} ${r.label.padEnd(7)} status=${r.status} h1=${r.h1s} links=${r.cards} banners=${r.banners} overflowX=${r.overflowX} lenis=${r.lenis} scrolledY=${r.scrolledY ?? "-"} errors=${r.errors.length}`);
 }
 if (failures.length) {
   console.log("FAIL\n- " + failures.join("\n- "));

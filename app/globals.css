@@ -1,4 +1,11 @@
-/* Base and component styles. Colours, spacing, type and radii come from tokens.css. */
+/*
+ * The whole site follows the 1994 CIA server page (webdesignmuseum.org/all-websites/cia-in-1994):
+ * one left-aligned fluid column, Times everywhere, black on white, blue underlined links, default
+ * bevelled <hr> rules, a seal floated right of the welcome line, banner links with 2px link-blue
+ * image borders, and a bold "Current Edition" dateline. Nothing here is rounded, shadowed or
+ * tinted; anything not styled below is left at the browser default on purpose.
+ * Values come from tokens.css.
+ */
 *,
 *::before,
 *::after {
@@ -6,198 +13,277 @@
 }
 
 body {
-  margin: 0;
+  margin: 8px var(--page-margin);
   background: var(--color-bg);
   color: var(--color-text);
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
   font-size: var(--text-base);
-  line-height: 1.5;
+  line-height: 1.2;
+}
+
+@media (max-width: 40rem) {
+  body {
+    margin: 8px var(--page-margin-phone);
+  }
 }
 
 a {
-  color: var(--color-accent);
+  color: var(--color-link);
+  text-decoration: underline;
+}
+
+a:visited {
+  color: var(--color-visited);
+}
+
+a:active {
+  color: var(--color-active);
+}
+
+a:focus-visible {
+  outline: 1px dotted currentColor;
+  outline-offset: 1px;
 }
 
 h1 {
-  font-size: var(--text-2xl);
-  line-height: 1.15;
-  margin: 0 0 var(--space-3);
+  font-size: var(--text-h1);
+  font-weight: 700;
+  margin: 0.67em 0;
 }
 
 h2 {
-  font-size: var(--text-xl);
-  margin: var(--space-6) 0 var(--space-3);
+  font-size: var(--text-h2);
+  margin: 0.83em 0;
 }
 
-.container {
-  max-width: 72rem;
-  margin: 0 auto;
-  padding: var(--space-5) var(--space-4);
+h3 {
+  font-size: var(--text-h3);
+  margin: 1em 0;
 }
 
-.site-header {
-  background: var(--color-header-bg);
-  border-bottom: 1px solid var(--color-border);
+p {
+  margin: var(--space-3) 0;
+}
+
+/* The default HTML <hr>: a 2px grooved grey rule. overflow:hidden makes it a block formatting
+   context, so beside the floated seal it ends at the seal's left edge, as in the reference. */
+hr {
+  height: 2px;
+  margin: 0.5em 0;
+  border: 1px inset var(--color-chrome-dark);
+  border-bottom-color: var(--color-chrome-light);
+  border-right-color: var(--color-chrome-light);
+  overflow: hidden;
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+/* Masthead */
+.masthead {
+  display: flow-root; /* contains the floated seal */
+}
+
+.masthead-seal {
+  float: right;
+  margin: 0 0 8px 8px;
+  line-height: 0;
+}
+
+.seal {
+  display: block;
+  width: 150px;
+  height: 150px;
+}
+
+.masthead-title {
+  font-size: var(--text-h1);
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0.4em 0 0.5em;
+  overflow: hidden; /* keeps it beside the seal instead of under it */
 }
 
 .site-nav {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-5);
-  padding-top: var(--space-3);
-  padding-bottom: var(--space-3);
-}
-
-/* On phones the brand takes its own row, so the three links share one line instead of each wrapping. */
-@media (max-width: 30rem) {
-  .site-nav {
-    gap: var(--space-2) var(--space-4);
-  }
-  .site-nav .brand {
-    flex-basis: 100%;
-  }
-}
-
-.site-nav .brand {
-  font-weight: 700;
-  margin-right: auto;
-  text-decoration: none;
-  color: var(--color-text);
-}
-
-.lede {
-  color: var(--color-muted);
-  max-width: 40rem;
-  margin: 0 0 var(--space-5);
-}
-
-/* Masonry: CSS columns flow cards top-to-bottom, so uneven card heights pack tightly. */
-.masonry {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  column-width: 16rem;
-  column-gap: var(--space-4);
-}
-
-.masonry > li {
-  break-inside: avoid;
-  margin-bottom: var(--space-4);
-}
-
-.card {
-  display: block;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+  margin: 0.75em 0 0;
   overflow: hidden;
-  color: inherit;
+}
+
+@media (max-width: 40rem) {
+  .seal {
+    width: 88px;
+    height: 88px;
+  }
+  .masthead-title {
+    font-size: 1.5em;
+  }
+}
+
+.site-footer p {
+  margin: 0.75em 0;
+}
+
+/* Project index: the "Publications..." list. No bullets; one row per project. */
+.project-index {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.project-index > li {
+  margin: 0 0 var(--space-4);
+}
+
+.index-summary,
+.index-particulars {
+  margin: 0.35em 0 0;
+  max-width: 46rem;
+}
+
+.index-particulars {
+  font-size: 0.875em;
+}
+
+.sample-tag {
+  font-weight: 700;
+}
+
+/* Banner: a 236x40 image-like plate. Inside a link it gets the 1994 linked-image border, 2px
+   in the link colour (purple once visited, exactly like border=2 on an <img>). */
+.banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 236px;
+  height: 40px;
+  padding: 0 6px 0 4px;
+  vertical-align: bottom;
+  overflow: hidden;
+  line-height: 1;
+  font-family: var(--font-serif);
   text-decoration: none;
 }
 
-.card:hover,
-.card:focus-visible {
-  border-color: var(--color-accent);
+/* border-color is set explicitly: each plate sets its own text colour, so currentColor would
+   pick up white or black instead of the link colour. */
+a .banner {
+  border: 2px solid var(--color-link);
 }
 
-.card-body {
-  padding: var(--space-4);
+a:visited .banner {
+  border-color: var(--color-visited);
 }
 
-.card-body h2 {
-  font-size: var(--text-lg);
-  margin: 0 0 var(--space-2);
+/* On phones the title would break beside the 236px plate, so the title drops to its own line.
+   The plate stays inline-flex: an atomic inline box, so the link underline never runs through
+   its lettering (a block-level plate would inherit the underline). */
+@media (max-width: 30rem) {
+  .index-title {
+    display: block;
+    margin-top: 2px;
+  }
 }
 
-.card-body p {
-  margin: 0 0 var(--space-3);
+.banner .seal-mark {
+  flex: none;
+}
+
+/* The World Factbook plate: olive-brown with fine dark crackle lines. */
+.banner--olive {
+  background-color: #6b5a2e;
+  background-image:
+    repeating-linear-gradient(37deg, transparent 0 9px, rgba(30, 20, 5, 0.55) 9px 10px),
+    repeating-linear-gradient(-58deg, transparent 0 13px, rgba(30, 20, 5, 0.45) 13px 14px),
+    repeating-linear-gradient(112deg, transparent 0 21px, rgba(200, 180, 120, 0.18) 21px 22px);
+  color: #ffffff;
+}
+
+.banner-agency {
+  flex: none;
+  font-size: 8px;
+  line-height: 1.05;
+}
+
+.banner-title {
+  margin-left: auto;
+  text-align: right;
+  display: grid;
+  gap: 1px;
+}
+
+.banner-title i {
+  color: #e8c35a;
+  font-size: 11px;
+}
+
+.banner-caps {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.banner-number {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* The Factbook on Intelligence plate: ivory, bold black centred lettering. */
+.banner--ivory {
+  background: #fffff0;
+  color: #000000;
+}
+
+.banner-plain {
+  flex: 1;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+/* Pager */
+.pagination p {
+  margin: 0.5em 0;
+}
+
+.pagination-row b {
+  padding: 0 0.1em;
+}
+
+.pagination-off {
   color: var(--color-muted);
-  font-size: var(--text-sm);
 }
 
-.meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-sm);
-}
-
-.badge {
-  background: var(--color-header-bg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 0 var(--space-2);
+/* Project page */
+.sample-note {
+  margin: 0 0 var(--space-3);
 }
 
 .thumb {
   display: block;
-  width: 100%;
-  object-fit: cover;
-}
-
-.thumb-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  background: var(--color-header-bg);
-  color: var(--color-accent);
-  font-size: var(--text-2xl);
-  font-weight: 700;
-}
-
-.hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-  gap: var(--space-5);
-  align-items: center;
-}
-
-.hero .thumb,
-.hero .thumb-placeholder {
-  border-radius: var(--radius-lg);
-}
-
-@media (max-width: 40rem) {
-  .hero {
-    grid-template-columns: 1fr;
-  }
-}
-
-.steps {
-  padding-left: var(--space-5);
+  max-width: 100%;
+  height: auto;
+  border: 0;
 }
 
 .steps li {
   margin-bottom: var(--space-2);
 }
 
-.grid-wrap {
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-
 .grid-total {
   margin: var(--space-3) 0 0;
-  font-size: var(--text-lg);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .grid-total small {
-  color: var(--color-muted);
   font-weight: 400;
-  font-size: var(--text-sm);
 }
 
-/* Forms */
+/* Forms: 1994 grey controls with bevelled edges. */
 .form {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
   max-width: 40rem;
 }
 
@@ -208,26 +294,28 @@ h2 {
 
 .field label,
 .fieldset legend {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .form input,
 .form textarea,
 .form select {
   font: inherit;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
+  width: 100%;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 2px inset var(--color-chrome);
+  border-radius: 0;
+  background: #ffffff;
   color: inherit;
 }
 
 .fieldset {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
+  min-width: 0; /* a fieldset defaults to min-content width, which overflowed phones */
+  border: 2px groove var(--color-chrome);
+  padding: var(--space-2) var(--space-3);
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .line-row {
@@ -245,133 +333,33 @@ h2 {
 .button {
   font: inherit;
   cursor: pointer;
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-accent);
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
+  padding: 2px 10px;
+  border: 2px outset var(--color-chrome);
+  border-radius: 0;
+  background: var(--color-chrome);
+  color: #000000;
 }
 
-.button-quiet {
-  background: transparent;
-  color: var(--color-accent);
+.button:active:not(:disabled) {
+  border-style: inset;
+}
+
+.button:disabled {
+  color: var(--color-chrome-dark);
+  cursor: default;
 }
 
 .error {
   color: var(--color-danger);
+  font-weight: 700;
   margin: 0;
 }
 
 .result {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
   max-width: 40rem;
 }
 
 .result pre {
   overflow-x: auto;
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-}
-
-/* Listing chrome shared by every view: view switcher, pager, sample tag.
-   Proposal stylesheets (components/listing/*.css) restyle these under their .listing--<view> class. */
-.view-switcher {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  margin: 0 0 var(--space-5);
-  font-size: var(--text-sm);
-}
-
-.view-switcher-label {
-  color: var(--color-muted);
-  font-weight: 600;
-}
-
-.view-switcher ul,
-.pagination ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.pagination ul {
-  justify-content: center;
-}
-
-/* Shown on mock project pages so placeholder prices are never mistaken for real ones. */
-.sample-note {
-  margin: 0 0 var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-muted);
-  font-size: var(--text-sm);
-}
-
-.view-switcher a {
-  display: inline-block;
-  padding: var(--space-1) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  text-decoration: none;
-}
-
-.view-switcher a[aria-current="page"] {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-accent-contrast);
-}
-
-.pagination {
-  display: grid;
-  justify-items: center;
-  gap: var(--space-3);
-  margin: var(--space-6) 0 var(--space-4);
-}
-
-.pagination-status {
-  margin: 0;
-  color: var(--color-muted);
-  font-size: var(--text-sm);
-}
-
-.pagination-page,
-.pagination-step {
-  display: inline-block;
-  min-width: 2.5rem;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  color: var(--color-text);
-  text-align: center;
-  text-decoration: none;
-}
-
-.pagination-page[aria-current="page"] {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-accent-contrast);
-}
-
-.pagination-step[aria-disabled="true"] {
-  color: var(--color-muted);
-  opacity: 0.5;
-}
-
-.badge-sample {
-  border-style: dashed;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: 0.875em;
 }

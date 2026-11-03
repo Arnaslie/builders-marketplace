@@ -30,18 +30,19 @@ import { formatCents, formatMoney, toCents } from "../lib/money";
 ModuleRegistry.registerModules([AllCommunityModule]);
 
 // The grid theme cannot read CSS variables, so these are the values from app/tokens.css as
-// literals. Keep them in sync with that file.
+// literals. Keep them in sync with that file. The look is a 1994 bordered <table>: grey header
+// row, grey rules, Times, square corners.
 const theme = themeQuartz.withParams({
-  accentColor: "#1f6f5c", // --color-accent
-  backgroundColor: "#ffffff", // --color-surface
-  foregroundColor: "#1f2a2e", // --color-text
-  borderColor: "#e2dccf", // --color-border
-  headerBackgroundColor: "#f1ece1", // --color-header-bg
-  fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', // --font-sans
-  fontSize: 14, // --text-sm
-  borderRadius: 4, // --radius-sm
-  wrapperBorderRadius: 8, // --radius-md
-  spacing: 8, // --space-2 (px)
+  accentColor: "#0000ee", // --color-link
+  backgroundColor: "#ffffff", // --color-bg
+  foregroundColor: "#000000", // --color-text
+  borderColor: "#808080", // --color-chrome-dark
+  headerBackgroundColor: "#c0c0c0", // --color-chrome
+  fontFamily: 'Times, "Times New Roman", "Liberation Serif", serif', // --font-serif
+  fontSize: 15,
+  borderRadius: 0,
+  wrapperBorderRadius: 0,
+  spacing: 6,
 });
 
 // One grid row. `owned` starts from the API's ownedDefault; qty and owned are user-editable.
@@ -79,7 +80,7 @@ function ImageCell({ data }: ICellRendererParams<Row>) {
     return <img src={data.imageUrl} alt="" width={40} height={40} style={{ objectFit: "cover", borderRadius: 4 }} />;
   }
   return (
-    <span aria-hidden="true" style={{ display: "inline-flex", width: 40, height: 40, alignItems: "center", justifyContent: "center", background: "#f1ece1", color: "#1f6f5c", borderRadius: 4, fontWeight: 700 }}>
+    <span aria-hidden="true" style={{ display: "inline-flex", width: 40, height: 40, alignItems: "center", justifyContent: "center", background: "#c0c0c0", color: "#000000", fontWeight: 700 }}>
       {data.name.charAt(0).toUpperCase()}
     </span>
   );

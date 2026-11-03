@@ -4,7 +4,7 @@ export const metadata = { title: "Recommend a project | DIY Wikipedia" };
 
 export default function RecommendPage() {
   return (
-    <main className="container">
+    <main>
       <h1>Recommend a project</h1>
       <p className="lede">
         Describe a build you would like to see. Add what it needs; prices are filled in later, so none are asked for

@@ -1,29 +1,15 @@
 import { notFound } from "next/navigation";
-import type { ComponentType } from "react";
-import { ClassicView } from "../components/listing/classic";
-import { IndustrialView } from "../components/listing/industrial";
-import { OffGridView } from "../components/listing/offgrid";
 import { Pagination } from "../components/listing/pagination";
-import { PostModernView } from "../components/listing/postmodern";
-import type { ListingViewProps } from "../components/listing/types";
-import { ViewSwitcher } from "../components/listing/view-switcher";
+import { ProjectIndex } from "../components/listing/project-index";
 import { listProjects } from "../lib/api/client";
-import { PAGE_SIZE, parsePage, parseView, type ViewId } from "../lib/listing";
-
-const VIEW_COMPONENTS: Record<ViewId, ComponentType<ListingViewProps>> = {
-  classic: ClassicView,
-  industrial: IndustrialView,
-  offgrid: OffGridView,
-  postmodern: PostModernView,
-};
+import { PAGE_SIZE, parsePage } from "../lib/listing";
 
 // Next 15: searchParams arrive as a Promise. Reading them makes "/" render per request
-// instead of being prerendered once, which is what lets ?page and ?view change the output.
+// instead of being prerendered once, which is what lets ?page change the output.
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 export default async function Home({ searchParams }: Props) {
   const params = await searchParams;
-  const view = parseView(params.view);
   const page = parsePage(params.page);
 
   const projects = await listProjects();
@@ -31,23 +17,25 @@ export default async function Home({ searchParams }: Props) {
   if (page > totalPages) notFound();
 
   const offset = (page - 1) * PAGE_SIZE;
-  const View = VIEW_COMPONENTS[view];
 
-  // The wrapper class is the hook each proposal's stylesheet scopes itself under.
+  // Section order follows the 1994 CIA server page: a caps mission heading and plain paragraphs,
+  // a rule, then the "Publications..." style list.
   return (
-    <main className={`listing listing--${view}`}>
-      <div className="container">
-        <header className="listing-header">
-          <h1>DIY Wikipedia</h1>
-          <p className="lede">
-            Hands-on projects with every material and tool priced out. Pick one, tick what you already own, and see
-            what is left to buy.
-          </p>
-          <ViewSwitcher view={view} page={page} />
-        </header>
-        <View projects={projects.slice(offset, offset + PAGE_SIZE)} offset={offset} />
-        <Pagination view={view} page={page} totalPages={totalPages} total={projects.length} pageSize={PAGE_SIZE} />
-      </div>
+    <main className="listing">
+      <h1>DIY WIKIPEDIA MISSION</h1>
+      <p>
+        In support of the home builder&apos;s fundamental role as principal maker of things around the house, the
+        Server&apos;s mission is to:
+      </p>
+      <p>
+        Provide builders with accurate, comprehensive, and timely project instructions, with every material and
+        tool priced out; and to let each builder tick what they already own and see what is left to buy.
+      </p>
+      <hr />
+      <h3>DIY Wikipedia Projects...</h3>
+      <ProjectIndex projects={projects.slice(offset, offset + PAGE_SIZE)} offset={offset} />
+      <hr />
+      <Pagination page={page} totalPages={totalPages} total={projects.length} pageSize={PAGE_SIZE} />
     </main>
   );
 }
