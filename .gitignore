@@ -10,3 +10,7 @@ __pycache__/
 .pytest_cache/
 # verify-diy-wikipedia skill: disposable app copies and proof artifacts
 .verify/
+# build artifacts and local agent tooling (kept on disk, not tracked)
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+.claude/
