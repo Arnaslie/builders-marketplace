@@ -3,12 +3,21 @@
   "slug": "forged-kitchen-knife",
   "status": "published",
   "title": "Forged Kitchen Knife",
-  "summary": "STUB: a carbon-steel utility knife forged from 1084 bar stock with a two-brick forge. Full materials list and steps still to come.",
+  "summary": "A carbon-steel utility knife forged from 1084 bar stock in a two-brick forge, hardened in warm oil, tempered in a kitchen oven and fitted with walnut scales on brass pins.",
   "difficulty": "advanced",
   "estimatedHours": 16,
   "imageUrl": null,
   "currency": "USD",
-  "steps": [],
+  "steps": [
+    "Stack the two soft firebricks with a channel between them and light the MAP torch into the opening to make the forge.",
+    "Heat the bar to orange and forge the point and the bevels with the cross-peen hammer on the anvil block, holding the bar in tongs.",
+    "Normalize three times: heat until a magnet no longer sticks, then let the blade cool in still air.",
+    "Grind the profile and bevels with the angle grinder, then drill the two handle pin holes before hardening.",
+    "Harden: heat to non-magnetic and quench edge-first in canola oil warmed to about 120 F. Check that a file skates on the edge.",
+    "Temper in the kitchen oven at 400 F for two one-hour cycles, cooling between them.",
+    "Hand-sand the blade from 120 to 400 grit, then glue the walnut scales on with epoxy and peen the brass pins.",
+    "Shape and sand the handle, finish it with oil, and hone the edge on the whetstone."
+  ],
   "materials": [
     {
       "id": "knife-1084-steel",
@@ -26,6 +35,156 @@
       "alternatives": []
     },
     {
+      "id": "knife-firebrick",
+      "name": "Soft insulating firebrick, 2300 F, 9 in x 4 1/2 in x 2 1/2 in",
+      "qty": 2,
+      "unit": "brick",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "9.99",
+      "currency": "USD",
+      "retailer": "Amazon",
+      "productUrl": "https://www.amazon.com/s?k=soft+insulating+firebrick+2300f",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "knife-map-gas",
+      "name": "MAP-Pro gas cylinder, 14.1 oz",
+      "qty": 2,
+      "unit": "cylinder",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "11.97",
+      "currency": "USD",
+      "retailer": "The Home Depot",
+      "productUrl": "https://www.homedepot.com/s/map%20pro%20gas%20cylinder",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": [
+        {
+          "channel3ProductId": null,
+          "name": "Propane torch cylinder, 14.1 oz",
+          "price": "6.47",
+          "currency": "USD",
+          "retailer": "The Home Depot",
+          "productUrl": "https://www.homedepot.com/s/propane%20torch%20cylinder%2014.1%20oz",
+          "imageUrl": null
+        }
+      ]
+    },
+    {
+      "id": "knife-quench-oil",
+      "name": "Canola oil, 1 gal",
+      "qty": 1,
+      "unit": "jug",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "9.98",
+      "currency": "USD",
+      "retailer": "Walmart",
+      "productUrl": "https://www.walmart.com/search?q=canola%20oil%201%20gallon",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "knife-handle-scales",
+      "name": "Walnut knife handle scales, pair",
+      "qty": 1,
+      "unit": "pair",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "14.99",
+      "currency": "USD",
+      "retailer": "Amazon",
+      "productUrl": "https://www.amazon.com/s?k=walnut+knife+handle+scales",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": [
+        {
+          "channel3ProductId": null,
+          "name": "Hardwood knife handle scales, assorted, pair",
+          "price": "8.99",
+          "currency": "USD",
+          "retailer": "Amazon",
+          "productUrl": "https://www.amazon.com/s?k=hardwood+knife+handle+scales",
+          "imageUrl": null
+        }
+      ]
+    },
+    {
+      "id": "knife-brass-pins",
+      "name": "1/8 in brass rod, 12 in",
+      "qty": 1,
+      "unit": "rod",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "5.49",
+      "currency": "USD",
+      "retailer": "Amazon",
+      "productUrl": "https://www.amazon.com/s?k=1%2F8+brass+rod+12+in",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "knife-epoxy",
+      "name": "Two-part epoxy, 30 minute, 1 oz",
+      "qty": 1,
+      "unit": "pack",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "7.47",
+      "currency": "USD",
+      "retailer": "The Home Depot",
+      "productUrl": "https://www.homedepot.com/s/30%20minute%20epoxy",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "knife-sandpaper",
+      "name": "Wet/dry sandpaper sheets (120 to 400 grit), 15 pack",
+      "qty": 1,
+      "unit": "pack",
+      "category": "material",
+      "channel3ProductId": null,
+      "price": "8.98",
+      "currency": "USD",
+      "retailer": "Lowe's",
+      "productUrl": "https://www.lowes.com/search?searchTerm=wet%20dry%20sandpaper%20assorted",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "knife-map-torch",
+      "name": "MAP-Pro self-igniting torch head",
+      "qty": 1,
+      "unit": "each",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "39.97",
+      "currency": "USD",
+      "retailer": "The Home Depot",
+      "productUrl": "https://www.homedepot.com/s/map%20pro%20torch%20head",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": [
+        {
+          "channel3ProductId": null,
+          "name": "Basic propane torch head",
+          "price": "19.97",
+          "currency": "USD",
+          "retailer": "The Home Depot",
+          "productUrl": "https://www.homedepot.com/s/propane%20torch%20head",
+          "imageUrl": null
+        }
+      ]
+    },
+    {
       "id": "knife-cross-peen-hammer",
       "name": "2 lb cross-peen hammer",
       "qty": 1,
@@ -38,6 +197,131 @@
       "productUrl": "https://www.amazon.com/s?k=2+lb+cross+peen+hammer",
       "imageUrl": null,
       "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "knife-anvil",
+      "name": "Steel bench block anvil, 4 in x 4 in",
+      "qty": 1,
+      "unit": "each",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "34.99",
+      "currency": "USD",
+      "retailer": "Amazon",
+      "productUrl": "https://www.amazon.com/s?k=steel+bench+block+anvil+4x4",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "knife-tongs",
+      "name": "Blacksmith flat-jaw tongs, 18 in",
+      "qty": 1,
+      "unit": "each",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "26.99",
+      "currency": "USD",
+      "retailer": "Amazon",
+      "productUrl": "https://www.amazon.com/s?k=blacksmith+flat+jaw+tongs",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": [
+        {
+          "channel3ProductId": null,
+          "name": "Locking pliers, 10 in",
+          "price": "12.97",
+          "currency": "USD",
+          "retailer": "The Home Depot",
+          "productUrl": "https://www.homedepot.com/s/10%20in%20locking%20pliers",
+          "imageUrl": null
+        }
+      ]
+    },
+    {
+      "id": "knife-angle-grinder",
+      "name": "4 1/2 in angle grinder with flap discs",
+      "qty": 1,
+      "unit": "each",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "49.00",
+      "currency": "USD",
+      "retailer": "Lowe's",
+      "productUrl": "https://www.lowes.com/search?searchTerm=4-1%2F2%20angle%20grinder",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": [
+        {
+          "channel3ProductId": null,
+          "name": "10 in mill bastard file",
+          "price": "11.98",
+          "currency": "USD",
+          "retailer": "Lowe's",
+          "productUrl": "https://www.lowes.com/search?searchTerm=10%20in%20mill%20bastard%20file",
+          "imageUrl": null
+        }
+      ]
+    },
+    {
+      "id": "knife-drill",
+      "name": "20V cordless drill/driver kit",
+      "qty": 1,
+      "unit": "each",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "99.00",
+      "currency": "USD",
+      "retailer": "The Home Depot",
+      "productUrl": "https://www.homedepot.com/s/20v%20drill%20driver%20kit",
+      "imageUrl": null,
+      "ownedDefault": true,
+      "alternatives": []
+    },
+    {
+      "id": "knife-whetstone",
+      "name": "Combination whetstone, 1000/6000 grit",
+      "qty": 1,
+      "unit": "each",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "27.99",
+      "currency": "USD",
+      "retailer": "Amazon",
+      "productUrl": "https://www.amazon.com/s?k=whetstone+1000+6000",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "knife-gloves",
+      "name": "Leather welding gloves",
+      "qty": 1,
+      "unit": "pair",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "15.98",
+      "currency": "USD",
+      "retailer": "The Home Depot",
+      "productUrl": "https://www.homedepot.com/s/leather%20welding%20gloves",
+      "imageUrl": null,
+      "ownedDefault": false,
+      "alternatives": []
+    },
+    {
+      "id": "knife-safety-glasses",
+      "name": "Clear safety glasses",
+      "qty": 1,
+      "unit": "each",
+      "category": "tool",
+      "channel3ProductId": null,
+      "price": "4.98",
+      "currency": "USD",
+      "retailer": "The Home Depot",
+      "productUrl": "https://www.homedepot.com/s/safety%20glasses",
+      "imageUrl": null,
+      "ownedDefault": true,
       "alternatives": []
     }
   ]
