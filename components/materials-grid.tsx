@@ -73,11 +73,26 @@ const toRow = (line: MaterialLine): Row => ({
 });
 
 // Cell renderers live outside the component so their identity is stable between renders.
+// imageUrl comes from the Channel3 price cache (contract/prices.json) when a line is priced, and
+// is null for unpriced fixture lines. A URL that fails to load (moved, hotlink-blocked) falls
+// back to the same letter tile as a missing one, never a broken-image icon.
 function ImageCell({ data }: ICellRendererParams<Row>) {
+  const [failed, setFailed] = useState(false);
   if (!data) return null;
-  if (data.imageUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={data.imageUrl} alt="" width={40} height={40} style={{ objectFit: "cover", borderRadius: 4 }} />;
+  if (data.imageUrl && /^https?:\/\//i.test(data.imageUrl) && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={data.imageUrl}
+        alt=""
+        width={40}
+        height={40}
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
+        style={{ objectFit: "contain", borderRadius: 4, background: "#ffffff" }}
+      />
+    );
   }
   return (
     <span aria-hidden="true" style={{ display: "inline-flex", width: 40, height: 40, alignItems: "center", justifyContent: "center", background: "#c0c0c0", color: "#000000", fontWeight: 700 }}>

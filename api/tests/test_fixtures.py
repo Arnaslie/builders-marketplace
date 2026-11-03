@@ -6,9 +6,11 @@ from pathlib import Path
 import pytest
 
 from app.models import Project
+from app.prices import PriceCache
 
 CONTRACT = Path(__file__).resolve().parents[2] / "contract"
 FIXTURES = sorted((CONTRACT / "fixtures").glob("*.json"))
+PRICES = CONTRACT / "prices.json"
 
 
 def _load(path: Path) -> Project:
@@ -31,3 +33,17 @@ def test_every_line_has_a_channel3_query() -> None:
     line_ids = {m.id for path in FIXTURES for m in _load(path).materials}
     assert set(queries) == line_ids
     assert all(q.strip() for q in queries.values())
+
+
+@pytest.mark.skipif(not PRICES.exists(), reason="contract/prices.json not generated yet")
+def test_committed_price_cache_matches_fixtures() -> None:
+    """prices.json parses, every key is a real project/line, and prices are in the project currency."""
+    cache = PriceCache.load(PRICES)
+    projects = {p.id: p for p in map(_load, FIXTURES)}
+    for table in (cache.projects, cache.misses):
+        for project_id, lines in table.items():
+            assert project_id in projects, f"unknown project {project_id} in prices.json"
+            stale = set(lines) - {m.id for m in projects[project_id].materials}
+            assert not stale, f"prices.json has lines no fixture has: {sorted(stale)}; re-run the price cache"
+    for project_id, lines in cache.projects.items():
+        assert {e.currency for e in lines.values()} <= {projects[project_id].currency}
