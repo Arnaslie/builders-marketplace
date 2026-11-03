@@ -1,6 +1,6 @@
 import type { ProjectSummary } from "../../lib/api/client";
 
-// Every listing view takes the same props, so app/page.tsx can swap views without branching.
+// Props for the project index on the home page.
 export type ListingViewProps = {
   // The ten (or fewer) projects on this page.
   projects: ProjectSummary[];
