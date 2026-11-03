@@ -30,7 +30,12 @@ async function loadFixtures(): Promise<Project[]> {
   ]);
   // The JSON is validated against the Project model by the API's own tests; TypeScript only
   // sees string literals here, so we assert the contract type.
-  return files.map((file) => file.default as unknown as Project);
+  const real = files.map((file) => file.default as unknown as Project);
+  // Mock listings pad the gallery to five pages until the real catalog grows (lib/mock/projects.ts).
+  // Imported lazily for the same reason as the fixtures: client components that import this
+  // module (recommend-form) must not bundle the mock catalog.
+  const { mockProjects } = await import("../mock/projects");
+  return [...real, ...mockProjects];
 }
 
 // Mirrors api/app/main.py list_projects: summary plus lineCount and estimatedTotal

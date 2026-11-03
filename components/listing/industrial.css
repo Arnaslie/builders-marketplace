@@ -1,0 +1,446 @@
+/*
+ * Proposal 1, "Industrial Revolution": soot, wrought iron, brass and riveted plates.
+ * Every rule is scoped under .listing--industrial so nothing leaks into other views or pages.
+ * The one exception is the site header, which sits outside <main>: it is themed through
+ * body:has(main.listing--industrial) so it only changes while this view is on screen.
+ * System fonts and pure CSS only (gradients, borders, pseudo-elements); no downloads.
+ * Contrast (WCAG AA): text #ece4d2 / #bdb39f / #d2c9b4 on plate #26231e, brass #d3a24a on #26231e,
+ * red-oxide stamp #f08a6c on #26231e, dark ink #15130f on brass #d3a24a. All pairs are above 4.5:1.
+ */
+.listing--industrial {
+  --ind-soot: #15130f;
+  --ind-iron: #26231e;
+  --ind-iron-deep: #1b1915;
+  --ind-seam: #4a443a;
+  --ind-text: #ece4d2;
+  --ind-muted: #bdb39f;
+  --ind-label: #d2c9b4;
+  --ind-brass: #d3a24a;
+  --ind-copper: #e0905a;
+  --ind-oxide: #f08a6c;
+  /* Condensed stencil-ish face for labels and buttons; falls back to condensed sans. */
+  --ind-stencil: Impact, Haettenschweiler, "Arial Narrow Bold", "Franklin Gothic Condensed", "Arial Narrow",
+    sans-serif;
+  /* Heavy slab for titles: stencil/slab faces first, system serifs after. No downloads. */
+  --ind-slab: "Stencil Std", Stencil, "Rockwell Extra Bold", Rockwell, Clarendon, "Roboto Slab", "Bookman Old Style",
+    Georgia, serif;
+  /* Domed brass rivet head: a highlight, a brass body, a dark rim, then transparent. */
+  --ind-rivet: radial-gradient(circle at 36% 30%, #fff1c4 0 11%, #e6bf6c 30%, #a57a30 62%, #4b3510 76%, transparent 80%);
+
+  /* Full-bleed: <main> spans the viewport, so the background reaches both edges. */
+  background-color: var(--ind-soot);
+  /* Faint diagonal scoring, like a worn steel floor, over a soot-to-iron wash. */
+  background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 14px),
+    linear-gradient(180deg, #1d1a15 0%, var(--ind-soot) 40%);
+  color: var(--ind-text);
+}
+
+.listing--industrial a:focus-visible {
+  outline: 3px solid #f2c14e;
+  outline-offset: 3px;
+}
+
+/* ---- Site header (outside <main>, so it needs the :has() hook) ---- */
+body:has(main.listing--industrial) .site-header {
+  background: linear-gradient(180deg, #2c2822 0%, #1b1915 100%);
+  border-bottom: 3px solid #4a443a;
+  box-shadow: 0 3px 0 #0a0908, inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+body:has(main.listing--industrial) .site-header a {
+  color: #e6c37a;
+  font-family: "Stencil Std", Stencil, "Rockwell", "Roboto Slab", Georgia, serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration-color: #8a6a2a;
+  text-underline-offset: 0.25em;
+}
+
+body:has(main.listing--industrial) .site-header a:hover {
+  color: #f0a572;
+}
+
+body:has(main.listing--industrial) .site-header .brand {
+  color: #f1d9a0;
+  text-decoration: none;
+}
+
+body:has(main.listing--industrial) .site-header a:focus-visible {
+  outline: 3px solid #f2c14e;
+  outline-offset: 3px;
+}
+
+/* ---- Page header ---- */
+.listing--industrial .listing-header {
+  position: relative;
+  padding-bottom: calc(var(--space-5) + 0.4rem);
+  margin-bottom: var(--space-5);
+}
+
+/* Girder rule along the foot of the header: an iron I-beam, flanges top and bottom, with a rivet row. */
+.listing--industrial .listing-header::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1rem;
+  background-image: radial-gradient(circle at 50% 50%, #f1d089 0 1.2px, #a57a30 2px 3.4px, #3a2a0c 3.9px, transparent 4.4px),
+    linear-gradient(180deg, #6a6354 0, #3d382f 22%, #2a2620 50%, #3d382f 78%, #14120e 100%);
+  background-size: 1.5rem 100%, 100% 100%;
+  background-repeat: repeat-x, no-repeat;
+  border-top: 2px solid #5a5346;
+  border-bottom: 2px solid #0a0908;
+  box-shadow: 0 3px 0 #0a0908;
+}
+
+.listing--industrial h1 {
+  font-family: var(--ind-slab);
+  font-weight: 800;
+  font-size: clamp(2.25rem, 8vw, 3.75rem);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ind-brass);
+  text-shadow: 2px 2px 0 #000;
+  margin: 0 0 var(--space-3);
+}
+
+.listing--industrial .lede {
+  color: var(--ind-muted);
+}
+
+/* ---- View switcher: riveted tabs ---- */
+.listing--industrial .view-switcher-label {
+  color: var(--ind-label);
+  font-family: var(--ind-stencil);
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.listing--industrial .view-switcher a {
+  border: 2px solid var(--ind-seam);
+  border-radius: 2px;
+  background: var(--ind-iron);
+  color: var(--ind-text);
+  font-family: var(--ind-stencil);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.listing--industrial .view-switcher a:hover {
+  border-color: var(--ind-copper);
+}
+
+.listing--industrial .view-switcher a[aria-current="page"] {
+  background: var(--ind-brass);
+  border-color: var(--ind-brass);
+  color: var(--ind-soot);
+}
+
+/* ---- Manifest: two columns of plates on wide screens, one on narrow ---- */
+.listing--industrial .ind-manifest {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+}
+
+@media (min-width: 56rem) {
+  .listing--industrial .ind-manifest {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.listing--industrial .ind-manifest > li {
+  display: flex;
+}
+
+/*
+ * The plate: brushed iron (fine vertical grain over a diagonal wash), a lit top-left edge and a dark
+ * bottom-right edge for the bevel. The padding makes a frame band above and below the content so the
+ * rivets sit on bare metal and never touch text.
+ */
+.listing--industrial .ind-plate {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 1.5rem 0;
+  color: var(--ind-text);
+  text-decoration: none;
+  background-color: var(--ind-iron);
+  background-image: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.022) 0 1px, rgba(0, 0, 0, 0.03) 1px 3px),
+    linear-gradient(160deg, #3a352d 0%, var(--ind-iron) 50%, var(--ind-iron-deep) 100%);
+  border: 3px solid var(--ind-seam);
+  border-top-color: #6a6354;
+  border-left-color: #5a5346;
+  border-right-color: #2a2620;
+  border-bottom-color: #1a1712;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 2px #14120e, inset 0 3px 0 rgba(255, 255, 255, 0.1), inset 0 -3px 6px rgba(0, 0, 0, 0.35),
+    0 6px 0 #0a0908;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+/* Four domed rivets in the frame bands: 10px heads, 0.45rem in from each corner. */
+.listing--industrial .ind-plate::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: var(--ind-rivet), var(--ind-rivet), var(--ind-rivet), var(--ind-rivet);
+  background-size: 0.65rem 0.65rem;
+  background-repeat: no-repeat;
+  background-position: top 0.45rem left 0.5rem, top 0.45rem right 0.5rem, bottom 0.45rem left 0.5rem,
+    bottom 0.45rem right 0.5rem;
+}
+
+.listing--industrial .ind-plate:hover,
+.listing--industrial .ind-plate:focus-visible {
+  border-color: var(--ind-copper);
+  transform: translateY(-2px);
+}
+
+/* Strip across the top: cast-iron serial plate on the left, stamp on the right. */
+.listing--industrial .ind-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0 var(--space-5);
+}
+
+.listing--industrial .ind-serial {
+  margin: 0;
+  padding: 0.1rem var(--space-3);
+  background: linear-gradient(180deg, #4a443a, #25221c);
+  border: 2px solid var(--ind-seam);
+  border-radius: 2px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 0 #0a0908;
+  font-family: var(--ind-stencil);
+  font-size: var(--text-lg);
+  letter-spacing: 0.12em;
+  color: var(--ind-brass);
+}
+
+.listing--industrial .ind-serial-label {
+  margin-right: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ind-label);
+}
+
+.listing--industrial .ind-tags {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* SAMPLE: a red-oxide ink stamp, slightly crooked, double-ruled. */
+.listing--industrial .ind-sample {
+  padding: 0.1rem var(--space-2);
+  border: 2px solid var(--ind-oxide);
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 2px var(--ind-iron), inset 0 0 0 3px rgba(240, 138, 108, 0.7);
+  background: rgba(176, 62, 34, 0.2);
+  color: var(--ind-oxide);
+  font-family: var(--ind-stencil);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  transform: rotate(-3deg);
+}
+
+/* Body: a small inspection window beside the title and summary. It grows, so the ledger stays at the foot. */
+.listing--industrial .ind-body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: 1;
+  padding: var(--space-4) var(--space-5);
+}
+
+.listing--industrial .ind-window {
+  flex: none;
+  width: 4.5rem;
+  height: 4.5rem;
+  overflow: hidden;
+  border: 3px solid var(--ind-seam);
+  border-top-color: #14120e;
+  border-left-color: #14120e;
+  border-right-color: #6a6354;
+  border-bottom-color: #6a6354;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px #000, 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+@media (min-width: 30rem) {
+  .listing--industrial .ind-window {
+    width: 6rem;
+    height: 6rem;
+  }
+}
+
+.listing--industrial .ind-window .thumb,
+.listing--industrial .ind-window .thumb-placeholder {
+  width: 100%;
+  height: 100%;
+}
+
+.listing--industrial .ind-window .thumb {
+  /* Sepia plate photograph, to sit with the brass. */
+  filter: sepia(0.6) contrast(1.05);
+}
+
+.listing--industrial .ind-window .thumb-placeholder {
+  background: radial-gradient(circle at 35% 30%, #4a443a, #14120e);
+  color: var(--ind-brass);
+  font-family: var(--ind-slab);
+  font-weight: 800;
+  font-size: var(--text-xl);
+}
+
+.listing--industrial .ind-text {
+  min-width: 0;
+}
+
+.listing--industrial .ind-text h2 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--ind-slab);
+  font-weight: 800;
+  font-size: clamp(1.15rem, 4.2vw, 1.45rem);
+  line-height: 1.15;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ind-text);
+  overflow-wrap: anywhere;
+}
+
+.listing--industrial .ind-plate:hover .ind-text h2,
+.listing--industrial .ind-plate:focus-visible .ind-text h2 {
+  color: var(--ind-copper);
+}
+
+.listing--industrial .ind-text p {
+  margin: 0;
+  color: var(--ind-muted);
+  font-size: var(--text-sm);
+}
+
+/*
+ * Ledger: monospace figures in ruled cells, pinned to the foot of the plate.
+ * Phones: two by two. 30rem and up: four across, GRADE widest (it holds "intermediate"), PARTS narrowest.
+ */
+.listing--industrial .ind-spec {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  margin: 0;
+  background: #100e0b;
+  border-top: 2px solid var(--ind-seam);
+  border-bottom: 2px solid var(--ind-seam);
+  font-family: var(--font-mono);
+}
+
+@media (min-width: 30rem) {
+  .listing--industrial .ind-spec {
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 0.8fr) minmax(0, 0.7fr) minmax(0, 1.15fr);
+  }
+}
+
+.listing--industrial .ind-spec > div {
+  min-width: 0;
+  padding: var(--space-2) var(--space-4);
+  border-right: 1px solid var(--ind-seam);
+}
+
+.listing--industrial .ind-spec > div:nth-child(2n) {
+  border-right: 0;
+}
+
+.listing--industrial .ind-spec > div:nth-child(-n + 2) {
+  border-bottom: 1px solid var(--ind-seam);
+}
+
+@media (min-width: 30rem) {
+  .listing--industrial .ind-spec > div {
+    border-right: 1px solid var(--ind-seam);
+    border-bottom: 0;
+  }
+
+  .listing--industrial .ind-spec > div:nth-child(-n + 2) {
+    border-bottom: 0;
+  }
+
+  .listing--industrial .ind-spec > div:last-child {
+    border-right: 0;
+  }
+}
+
+.listing--industrial .ind-spec dt {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ind-label);
+}
+
+.listing--industrial .ind-spec dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--ind-brass);
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+
+/* ---- Pager: same plate language ---- */
+.listing--industrial .pagination-status {
+  color: var(--ind-label);
+  font-family: var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.listing--industrial .pagination-page,
+.listing--industrial .pagination-step {
+  border: 2px solid var(--ind-seam);
+  border-radius: 2px;
+  background: var(--ind-iron);
+  color: var(--ind-text);
+  font-family: var(--ind-stencil);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.listing--industrial a.pagination-page:hover,
+.listing--industrial a.pagination-step:hover {
+  border-color: var(--ind-copper);
+}
+
+.listing--industrial .pagination-page[aria-current="page"] {
+  background: var(--ind-brass);
+  border-color: var(--ind-brass);
+  color: var(--ind-soot);
+}
+
+/* Disabled steps are exempt from contrast rules but stay legible. */
+.listing--industrial .pagination-step[aria-disabled="true"] {
+  color: var(--ind-muted);
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .listing--industrial .ind-plate {
+    transition: none;
+  }
+
+  .listing--industrial .ind-plate:hover,
+  .listing--industrial .ind-plate:focus-visible {
+    transform: none;
+  }
+}

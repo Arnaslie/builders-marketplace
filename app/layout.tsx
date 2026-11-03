@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import "lenis/dist/lenis.css";
 import "./tokens.css";
 import "./globals.css";
+import { SmoothScroll } from "../components/smooth-scroll";
 
 export const metadata = {
   title: "DIY Wikipedia",
@@ -12,6 +14,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <body>
+        <SmoothScroll />
         <header className="site-header">
           <nav className="container site-nav" aria-label="Main">
             <Link href="/" className="brand">
