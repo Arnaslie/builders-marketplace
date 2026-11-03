@@ -1,0 +1,32 @@
+# Build check: runs the same install and build commands as the Render web service (render.yaml).
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: next build (Node 20)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20" # matches package.json engines.node and render.yaml NODE_VERSION
+          cache: npm
+
+      - run: npm ci
+
+      # No env vars needed: NEXT_PUBLIC_API_URL unset falls back to contract fixtures,
+      # and every other variable is read at run time only (.env.example).
+      - run: npm run build
