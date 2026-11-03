@@ -18,10 +18,19 @@ from fastapi import APIRouter, Body, Depends, FastAPI, HTTPException, Request, s
 from fastapi.middleware.cors import CORSMiddleware
 
 from .agent import build_agent_cart
-from .cart import UnknownLineError, build_cart, money, project_total
+from .cart import (
+    InvalidSwapError,
+    SwapChoice,
+    UnknownLineError,
+    build_cart,
+    build_cart_with_swaps,
+    money,
+    project_total,
+)
 from .models import (
     BuildCartRequest,
     Cart,
+    CartRequest,
     CheckoutConfig,
     Health,
     Order,
@@ -74,10 +83,23 @@ def _project_or_404(store: FixtureStore, project_id: str) -> Project:
     return project
 
 
-def _cart_or_422(project: Project, body: BuildCartRequest) -> Cart:
+# Reason recorded on a swap that arrives as a pick (line + alternative index) rather than from the
+# agent in this request. Browser-supplied text is never stored on an order.
+PICKED_SWAP_REASON = "Cheaper listed alternative chosen with the shopping agent."
+
+
+def _cart_or_422(project: Project, body: CartRequest) -> Cart:
+    """Price the cart for /cart and /checkout/orders. Never calls the LLM.
+
+    With body.swaps, exactly those swaps are applied after the server re-checks each one; without
+    it, the deterministic budget rules choose. Either way every price comes from the project data.
+    """
     try:
-        return build_cart(project, body.owned, body.budget)
-    except UnknownLineError as exc:
+        if body.swaps is None:
+            return build_cart(project, body.owned, body.budget)
+        choices = [SwapChoice(line_id=s.line_id, alt_index=s.alt_index, reason=PICKED_SWAP_REASON) for s in body.swaps]
+        return build_cart_with_swaps(project, body.owned, body.budget, choices)
+    except (UnknownLineError, InvalidSwapError) as exc:
         raise HTTPException(UNPROCESSABLE, str(exc)) from exc
 
 
@@ -161,6 +183,18 @@ def agent_build_cart(body: BuildCartRequest, store: Store) -> Cart:
         raise HTTPException(UNPROCESSABLE, str(exc)) from exc
 
 
+@router.post(
+    "/cart",
+    response_model=Cart,
+    responses={**NOT_FOUND, 422: {"description": "Invalid body, unknown owned line id, or invalid swap"}},
+    tags=["agent"],
+    operation_id="priceCart",
+)
+def price_cart(body: CartRequest, store: Store) -> Cart:
+    """The cart page's view of a cart: the same pricing /checkout/orders charges, with no LLM call."""
+    return _cart_or_422(_project_or_404(store, body.project_id), body)
+
+
 # --- Checkout: PayPal Orders v2 (app is merchant of record; fulfilment simulated) -----------
 
 # Every fixture project is priced in USD; the JS SDK script tag must use the same currency.
@@ -223,18 +257,18 @@ def get_checkout_config(paypal: PayPal) -> CheckoutConfig:
     status_code=status.HTTP_201_CREATED,
     responses={
         **NOT_FOUND,
-        422: {"description": "Invalid body, unknown owned line id, or empty cart"},
+        422: {"description": "Invalid body, unknown owned line id, invalid swap, or empty cart"},
         502: {"description": "PayPal rejected the request or did not respond; no order was stored"},
         503: {"description": "PayPal credentials are not set on the server"},
     },
     tags=["checkout"],
     operation_id="createCheckoutOrder",
 )
-def create_checkout_order(body: BuildCartRequest, store: Store, orders: Orders, paypal: PayPal) -> PayPalOrder:
+def create_checkout_order(body: CartRequest, store: Store, orders: Orders, paypal: PayPal) -> PayPalOrder:
     """Create a PayPal order for the cart the server builds from this request.
 
-    The client sends the same input as /agent/build-cart, not prices: the server recomputes the
-    cart, so a tampered browser cannot set its own total.
+    The client sends the same input as POST /cart, not prices: the server recomputes the cart
+    (re-checking any swaps), so a tampered browser cannot set its own total.
     """
     cart = _cart_or_422(_project_or_404(store, body.project_id), body)
     if not cart.lines:

@@ -7,7 +7,8 @@
 // unavailable instead of showing a reason the model did not write.
 import Link from "next/link";
 import { useId, useState, type FormEvent } from "react";
-import { buildCart, type Cart, type MaterialLine } from "../lib/api/client";
+import { buildCart, usingApi, type Cart, type MaterialLine } from "../lib/api/client";
+import { cartHref } from "../lib/cart-link";
 import { formatCents, formatMoney, toCents } from "../lib/money";
 
 const BUDGET_PATTERN = /^\d{1,7}(\.\d{1,2})?$/;
@@ -21,7 +22,9 @@ function parseBudget(raw: string): { ok: true; value: string | undefined } | { o
   return { ok: true, value: `${whole}.${frac.padEnd(2, "0")}` };
 }
 
-export function AgentPanel({ projectId, lines, currency }: { projectId: string; lines: MaterialLine[]; currency: string }) {
+type Props = { projectId: string; slug: string; lines: MaterialLine[]; currency: string };
+
+export function AgentPanel({ projectId, slug, lines, currency }: Props) {
   const id = useId();
   const [budget, setBudget] = useState("");
   const [owned, setOwned] = useState<Record<string, boolean>>(() =>
@@ -29,7 +32,9 @@ export function AgentPanel({ projectId, lines, currency }: { projectId: string; 
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cart, setCart] = useState<Cart | null>(null);
+  // The cart together with the inputs that produced it, so "Go to the cart" links to exactly this
+  // cart even if the form is edited afterwards.
+  const [result, setResult] = useState<{ cart: Cart; href: string } | null>(null);
 
   // Tools first: they are the usual "I already have one" items.
   const ordered = [...lines].sort((a, b) => Number(b.category === "tool") - Number(a.category === "tool"));
@@ -37,21 +42,21 @@ export function AgentPanel({ projectId, lines, currency }: { projectId: string; 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    if (!usingApi) {
+      setError("The shopping agent needs the API server (NEXT_PUBLIC_API_URL is not set on this copy of the site).");
+      return;
+    }
     const parsed = parseBudget(budget);
     if (!parsed.ok) {
       setError("Budget must be an amount such as 200 or 199.99.");
       return;
     }
     setBusy(true);
-    setCart(null);
+    setResult(null);
     try {
-      setCart(
-        await buildCart({
-          projectId,
-          owned: lines.filter((line) => owned[line.id]).map((line) => line.id),
-          budget: parsed.value,
-        }),
-      );
+      const ownedIds = lines.filter((line) => owned[line.id]).map((line) => line.id);
+      const cart = await buildCart({ projectId, owned: ownedIds, ...(parsed.value ? { budget: parsed.value } : {}) });
+      setResult({ cart, href: cartHref(slug, ownedIds, parsed.value, cart) });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not build the cart.");
     } finally {
@@ -103,12 +108,12 @@ export function AgentPanel({ projectId, lines, currency }: { projectId: string; 
         </div>
       </form>
 
-      {cart && <AgentCart cart={cart} />}
+      {result && <AgentCart cart={result.cart} href={result.href} />}
     </section>
   );
 }
 
-function AgentCart({ cart }: { cart: Cart }) {
+function AgentCart({ cart, href }: { cart: Cart; href: string }) {
   const agentUsed = cart.agentUsed === true;
   const overBy = cart.budget !== null && !cart.withinBudget ? toCents(cart.subtotal) - toCents(cart.budget) : 0;
   let status: string;
@@ -177,7 +182,7 @@ function AgentCart({ cart }: { cart: Cart }) {
       )}
 
       <p>
-        <Link href="/cart">Go to the cart</Link>
+        <Link href={href}>Go to the cart and pay with PayPal</Link>
       </p>
     </div>
   );

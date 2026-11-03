@@ -51,13 +51,14 @@ def project_total(project: Project) -> Decimal:
     return sum((line_total(line) for line in project.materials), Decimal("0"))
 
 
-def _cheapest_alternative(line: MaterialLine) -> ProductOption | None:
+def _cheapest_alternative(line: MaterialLine) -> tuple[int, ProductOption] | None:
+    """The cheapest listed alternative and its index in ``line.alternatives``, or None."""
     cheaper = [
-        alt
-        for alt in line.alternatives
+        (index, alt)
+        for index, alt in enumerate(line.alternatives)
         if alt.currency == line.currency and Decimal(alt.price) < Decimal(line.price)
     ]
-    return min(cheaper, key=lambda alt: (Decimal(alt.price), alt.name), default=None)
+    return min(cheaper, key=lambda pair: (Decimal(pair[1].price), pair[1].name), default=None)
 
 
 def build_cart(project: Project, owned: list[str], budget: str | None) -> Cart:
@@ -76,14 +77,15 @@ def build_cart(project: Project, owned: list[str], budget: str | None) -> Cart:
 
     if budget is not None:
         limit = Decimal(budget)
-        candidates: list[tuple[Decimal, MaterialLine, ProductOption]] = []
+        candidates: list[tuple[Decimal, MaterialLine, int, ProductOption]] = []
         for line in kept:
-            alt = _cheapest_alternative(line)
-            if alt is not None:
-                candidates.append(((Decimal(line.price) - Decimal(alt.price)) * line.qty, line, alt))
+            cheapest = _cheapest_alternative(line)
+            if cheapest is not None:
+                index, alt = cheapest
+                candidates.append(((Decimal(line.price) - Decimal(alt.price)) * line.qty, line, index, alt))
         candidates.sort(key=lambda c: (-c[0], c[1].id))
 
-        for saving, line, alt in candidates:
+        for saving, line, index, alt in candidates:
             if subtotal <= limit:
                 break
             over = subtotal - limit
@@ -92,6 +94,7 @@ def build_cart(project: Project, owned: list[str], budget: str | None) -> Cart:
             swaps.append(
                 Swap(
                     line_id=line.id,
+                    alt_index=index,
                     from_=default_option(line),
                     to=alt,
                     reason=(
@@ -194,6 +197,7 @@ def build_cart_with_swaps(project: Project, owned: list[str], budget: str | None
         swaps.append(
             Swap(
                 line_id=line.id,
+                alt_index=choice.alt_index,
                 from_=default_option(line),
                 to=alt,
                 reason=choice.reason,

@@ -43,7 +43,7 @@ export default async function ProjectPage({ params }: Props) {
       <MaterialsGrid lines={project.materials} currency={project.currency} />
 
       <h2>Shopping Agent</h2>
-      <AgentPanel projectId={project.id} lines={project.materials} currency={project.currency} />
+      <AgentPanel projectId={project.id} slug={project.slug} lines={project.materials} currency={project.currency} />
 
       <h2>Steps</h2>
       <ol className="steps">

@@ -7,7 +7,7 @@
 //     https://github.com/paypal-examples/docs-examples/blob/main/standard-integration/client/html/src/app.js
 //
 // The buttons are PayPal's own UI. Money never comes from this file: createOrder sends the same
-// BuildCartRequest as the cart page, and the API rebuilds the cart and sets the total itself.
+// CartRequest as the cart page, and the API rebuilds the cart and sets the total itself.
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -15,7 +15,7 @@ import {
   captureCheckoutOrder,
   createCheckoutOrder,
   getCheckoutConfig,
-  type BuildCartRequest,
+  type CartRequest,
 } from "../lib/api/client";
 
 // The slice of the SDK this component uses. The SDK has no first-party types on window.paypal.
@@ -66,7 +66,7 @@ function errorText(error: unknown): string {
 
 type Phase = "loading" | "ready" | "unconfigured" | "failed";
 
-export function PayPalCheckout({ request }: { request: BuildCartRequest }) {
+export function PayPalCheckout({ request }: { request: CartRequest }) {
   const router = useRouter();
   const container = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<Phase>("loading");
@@ -78,7 +78,7 @@ export function PayPalCheckout({ request }: { request: BuildCartRequest }) {
   useEffect(() => {
     let cancelled = false;
     let buttons: ButtonsInstance | null = null;
-    const body = JSON.parse(requestKey) as BuildCartRequest;
+    const body = JSON.parse(requestKey) as CartRequest;
 
     (async () => {
       try {
