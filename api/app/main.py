@@ -17,6 +17,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Body, Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 
+from .agent import build_agent_cart
 from .cart import UnknownLineError, build_cart, money, project_total
 from .models import (
     BuildCartRequest,
@@ -151,7 +152,11 @@ def create_recommendation(body: RecommendationRequest) -> Recommendation:
     operation_id="buildCart",
 )
 def agent_build_cart(body: BuildCartRequest, store: Store) -> Cart:
-    return _cart_or_422(_project_or_404(store, body.project_id), body)
+    project = _project_or_404(store, body.project_id)
+    try:
+        return build_agent_cart(project, body.owned, body.budget)
+    except UnknownLineError as exc:
+        raise HTTPException(UNPROCESSABLE, str(exc)) from exc
 
 
 # --- Checkout (TODO(PAYMENTS ENGINEER): replace stubs with real PayPal sandbox calls) --------

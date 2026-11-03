@@ -13,6 +13,7 @@ step can add explanations or extra swaps on top, but must not replace these guar
    with ``within_budget = false`` rather than dropping items the project needs.
 """
 
+from dataclasses import dataclass
 from decimal import Decimal
 
 from .models import Cart, CartLine, MaterialLine, Project, ProductOption, Swap
@@ -128,4 +129,98 @@ def build_cart(project: Project, owned: list[str], budget: str | None) -> Cart:
         subtotal=money(subtotal),
         budget=budget,
         within_budget=budget is None or subtotal <= Decimal(budget),
+    )
+
+
+# --- Agent-proposed swaps -------------------------------------------------------------------
+# app/agent.py lets an LLM choose which swaps to make, but every proposal is checked and priced
+# here, so the totals still come from this file and never from model output.
+
+
+class InvalidSwapError(ValueError):
+    """A proposed swap breaks the cart rules; the caller drops it."""
+
+
+@dataclass(frozen=True)
+class SwapChoice:
+    line_id: str
+    alt_index: int  # position in MaterialLine.alternatives
+    reason: str
+
+
+def check_swap(
+    project: Project, owned: list[str], line_id: str, alt_index: object
+) -> tuple[MaterialLine, ProductOption]:
+    """Return the line and its alternative, or raise InvalidSwapError.
+
+    A swap must name a real line that is not owned, pick a listed alternative (so no invented
+    product or price), stay in the line's currency, and be strictly cheaper than the default.
+    """
+    line = next((m for m in project.materials if m.id == line_id), None)
+    if line is None:
+        raise InvalidSwapError(f"unknown line {line_id!r}")
+    if line_id in owned:
+        raise InvalidSwapError(f"line {line_id!r} is owned, so it is not in the cart")
+    if isinstance(alt_index, bool) or not isinstance(alt_index, int) or not 0 <= alt_index < len(line.alternatives):
+        raise InvalidSwapError(f"line {line_id!r} has no alternative {alt_index!r}")
+    alt = line.alternatives[alt_index]
+    if alt.currency != line.currency or Decimal(alt.price) >= Decimal(line.price):
+        raise InvalidSwapError(f"alternative {alt_index} of {line_id!r} is not cheaper")
+    return line, alt
+
+
+def build_cart_with_swaps(project: Project, owned: list[str], budget: str | None, choices: list[SwapChoice]) -> Cart:
+    """The cart for ``owned`` with exactly ``choices`` applied (no budget-driven swaps of its own).
+
+    Raises UnknownLineError for a bad owned id and InvalidSwapError for a bad or repeated choice.
+    ``within_budget`` is computed, not trusted; the caller decides what to do when it is false.
+    """
+    base = build_cart(project, owned, None)
+    picked: dict[str, tuple[SwapChoice, MaterialLine, ProductOption]] = {}
+    for choice in choices:
+        if choice.line_id in picked:
+            raise InvalidSwapError(f"line {choice.line_id!r} swapped twice")
+        line, alt = check_swap(project, owned, choice.line_id, choice.alt_index)
+        picked[choice.line_id] = (choice, line, alt)
+
+    lines: list[CartLine] = []
+    swaps: list[Swap] = []
+    for cart_line in base.lines:
+        pick = picked.get(cart_line.line_id)
+        if pick is None:
+            lines.append(cart_line)
+            continue
+        choice, line, alt = pick
+        swaps.append(
+            Swap(
+                line_id=line.id,
+                from_=default_option(line),
+                to=alt,
+                reason=choice.reason,
+                savings=money((Decimal(line.price) - Decimal(alt.price)) * line.qty),
+            )
+        )
+        lines.append(
+            cart_line.model_copy(
+                update={
+                    "name": alt.name,
+                    "unit_price": alt.price,
+                    "line_total": money(Decimal(alt.price) * line.qty),
+                    "retailer": alt.retailer,
+                    "product_url": alt.product_url,
+                    "channel3_product_id": alt.channel3_product_id,
+                    "swapped": True,
+                    "reason": choice.reason,
+                }
+            )
+        )
+    subtotal = sum((Decimal(item.line_total) for item in lines), Decimal("0"))
+    return base.model_copy(
+        update={
+            "lines": lines,
+            "swaps": swaps,
+            "subtotal": money(subtotal),
+            "budget": budget,
+            "within_budget": budget is None or subtotal <= Decimal(budget),
+        }
     )

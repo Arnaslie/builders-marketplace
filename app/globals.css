@@ -363,3 +363,59 @@ a:visited .banner {
   overflow-x: auto;
   font-size: 0.875em;
 }
+
+/* Shopping agent panel: a 1994 form and a plain bordered table. Checkboxes stay browser default. */
+.agent-panel {
+  max-width: 46rem;
+}
+
+.agent-form {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 40rem;
+}
+
+.agent-form input[type="text"] {
+  font: inherit;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 2px inset var(--color-chrome);
+  border-radius: 0;
+  background: #ffffff;
+  color: inherit;
+}
+
+.owned-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.owned-list li {
+  margin: 0 0 var(--space-1);
+}
+
+.cart-wrap {
+  overflow-x: auto;
+}
+
+.cart-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.cart-table th,
+.cart-table td {
+  border: 1px solid var(--color-chrome-dark);
+  padding: 2px 6px;
+  text-align: left;
+}
+
+.cart-table th {
+  background: var(--color-chrome);
+}
+
+.swap-list li {
+  margin-bottom: var(--space-2);
+}

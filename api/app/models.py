@@ -163,6 +163,10 @@ class CartLine(ContractModel):
     product_url: str
     channel3_product_id: str | None
     swapped: bool = Field(description="True when this line uses a cheaper alternative (see swaps).")
+    reason: str | None = Field(
+        default=None,
+        description="One-sentence reason the agent gave for swapping this line; null when the line is unchanged or the agent was not used.",
+    )
 
 
 class Swap(ContractModel):
@@ -182,6 +186,10 @@ class Cart(ContractModel):
     subtotal: Price
     budget: Price | None
     within_budget: bool = Field(description="subtotal <= budget; always true when no budget was given.")
+    agent_used: bool = Field(
+        default=False,
+        description="True when the swaps and reasons came from the Claude agent; false when the deterministic rules built the cart.",
+    )
 
 
 # --- Checkout -------------------------------------------------------------------------------

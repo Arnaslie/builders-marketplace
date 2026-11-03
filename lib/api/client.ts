@@ -14,6 +14,7 @@ export type MaterialLine = components["schemas"]["MaterialLine"];
 export type DraftLine = components["schemas"]["DraftLine"];
 export type RecommendationRequest = components["schemas"]["RecommendationRequest"];
 export type Recommendation = components["schemas"]["Recommendation"];
+export type Cart = components["schemas"]["Cart"];
 
 // Next inlines NEXT_PUBLIC_* at build time, so this works in server and client components.
 const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") || undefined;
@@ -101,4 +102,29 @@ export async function submitRecommendation(draft: RecommendationRequest): Promis
     throw new Error(`The API rejected the draft (HTTP ${res.status})${detail}`);
   }
   return { kind: "saved", recommendation: (await res.json()) as Recommendation };
+}
+
+export type BuildCartInput = { projectId: string; owned: string[]; budget?: string };
+
+// POST /agent/build-cart. The server computes every price and total; this only passes the
+// user's choices through. There is no fixture fallback: a cart needs the API.
+export async function buildCart(input: BuildCartInput): Promise<Cart> {
+  if (!usingApi) throw new Error("The shopping agent needs the API (NEXT_PUBLIC_API_URL is unset).");
+  const res = await apiFetch("/agent/build-cart", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input), // budget is omitted when undefined
+  });
+  if (!res.ok) {
+    let detail = "";
+    try {
+      const body = (await res.json()) as { detail?: unknown };
+      if (typeof body.detail === "string") detail = `: ${body.detail}`;
+      else if (Array.isArray(body.detail) && body.detail[0]?.msg) detail = `: ${body.detail[0].msg}`;
+    } catch {
+      // Non-JSON error body; the status code is enough.
+    }
+    throw new Error(`The shopping agent request failed (HTTP ${res.status})${detail}`);
+  }
+  return (await res.json()) as Cart;
 }

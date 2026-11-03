@@ -214,6 +214,12 @@ export interface components {
              * @description subtotal <= budget; always true when no budget was given.
              */
             withinBudget: boolean;
+            /**
+             * Agentused
+             * @description True when the swaps and reasons came from the Claude agent; false when the deterministic rules built the cart.
+             * @default false
+             */
+            agentUsed: boolean;
         };
         /** CartLine */
         CartLine: {
@@ -257,6 +263,11 @@ export interface components {
              * @description True when this line uses a cheaper alternative (see swaps).
              */
             swapped: boolean;
+            /**
+             * Reason
+             * @description One-sentence reason the agent gave for swapping this line; null when the line is unchanged or the agent was not used.
+             */
+            reason?: string | null;
         };
         /**
          * DraftLine
