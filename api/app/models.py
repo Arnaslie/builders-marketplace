@@ -201,6 +201,14 @@ class Order(ContractModel):
     lines: list[CartLine]
 
 
+class CheckoutConfig(ContractModel):
+    """What the browser needs to load the PayPal JS SDK. The client id is public by design."""
+
+    client_id: str = Field(description="PayPal REST client id for the JS SDK script tag (not a secret).")
+    currency: Currency
+    env: Literal["sandbox", "live"]
+
+
 class PayPalAmount(PayPalModel):
     currency_code: Currency
     value: Price
