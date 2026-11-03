@@ -300,3 +300,77 @@ def test_checkout_routes_503_when_paypal_not_configured() -> None:
     assert c.get("/checkout/config").status_code == 503
     assert c.post("/checkout/orders", json=CHAIR_BODY).status_code == 503
     assert app.state.orders == {}
+
+
+# --- Swap picks: the cart page and checkout charge exactly the agent's choices -------------
+# Chair with the default owned tools is 250.67. The miter saw (129.00) has two listed
+# alternatives: [0] 24.98 (cheapest) and [1] 59.00. Picking [1] gives 250.67 - 129.00 + 59.00.
+
+MITER_PICK = {"lineId": "chair-miter-saw", "altIndex": 1}
+
+
+def test_checkout_charges_exactly_the_picked_swaps(client: TestClient, fake_paypal: FakePayPal) -> None:
+    r = client.post("/checkout/orders", json={**CHAIR_BODY, "budget": "200.00", "swaps": [MITER_PICK]})
+    assert r.status_code == 201
+    sent = json.loads(fake_paypal.calls("create")[0].content)
+    assert sent["purchase_units"][0]["amount"]["value"] == "180.67"
+    record = client.get(f"/checkout/orders/{r.json()['id']}").json()
+    miter = next(line for line in record["lines"] if line["lineId"] == "chair-miter-saw")
+    assert miter["swapped"] is True and miter["unitPrice"] == "59.00"
+
+
+def test_cart_route_prices_the_same_cart_checkout_charges(client: TestClient, fake_paypal: FakePayPal) -> None:
+    body = {**CHAIR_BODY, "budget": "200.00", "swaps": [MITER_PICK]}
+    cart = client.post("/cart", json=body).json()
+    paypal_id = client.post("/checkout/orders", json=body).json()["id"]
+    assert cart["subtotal"] == client.get(f"/checkout/orders/{paypal_id}").json()["total"] == "180.67"
+    assert cart["swaps"] == [
+        {**cart["swaps"][0], "lineId": "chair-miter-saw", "altIndex": 1}
+    ]  # the pick round-trips, so the cart page can link to checkout with it
+
+
+def test_empty_swap_list_means_no_swaps_even_over_budget(client: TestClient) -> None:
+    cart = client.post("/cart", json={**CHAIR_BODY, "budget": "100.00", "swaps": []}).json()
+    assert cart["subtotal"] == "250.67" and cart["swaps"] == [] and cart["withinBudget"] is False
+
+
+def test_omitted_swaps_uses_deterministic_rules_with_alt_index(client: TestClient) -> None:
+    cart = client.post("/cart", json={**CHAIR_BODY, "budget": "200.00"}).json()
+    assert cart["subtotal"] == chair_cart("200.00").subtotal
+    miter = next(s for s in cart["swaps"] if s["lineId"] == "chair-miter-saw")
+    assert miter["altIndex"] == 0  # the cheapest listed alternative
+
+
+@pytest.mark.parametrize(
+    "pick",
+    [
+        {"lineId": "chair-miter-saw", "altIndex": 2},  # no such alternative
+        {"lineId": "chair-drill", "altIndex": 0},  # owned, so not in the cart
+        {"lineId": "no-such-line", "altIndex": 0},
+    ],
+)
+def test_invalid_pick_is_422_and_paypal_is_never_called(
+    client: TestClient, fake_paypal: FakePayPal, pick: dict
+) -> None:
+    r = client.post("/checkout/orders", json={**CHAIR_BODY, "swaps": [pick]})
+    assert r.status_code == 422
+    assert fake_paypal.calls("create") == []
+    assert client.post("/cart", json={**CHAIR_BODY, "swaps": [pick]}).status_code == 422
+
+
+def test_repeated_pick_is_422(client: TestClient) -> None:
+    r = client.post("/cart", json={**CHAIR_BODY, "swaps": [MITER_PICK, {"lineId": "chair-miter-saw", "altIndex": 0}]})
+    assert r.status_code == 422
+
+
+def test_cart_and_checkout_never_run_the_agent(
+    client: TestClient, fake_paypal: FakePayPal, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def boom(*args: object, **kwargs: object) -> None:
+        raise AssertionError("the LLM agent must not run when pricing or paying for a cart")
+
+    monkeypatch.setattr("app.main.build_agent_cart", boom)
+    monkeypatch.setattr("app.agent.make_client", boom)
+    body = {**CHAIR_BODY, "budget": "200.00"}
+    assert client.post("/cart", json=body).status_code == 200
+    assert client.post("/checkout/orders", json=body).status_code == 201

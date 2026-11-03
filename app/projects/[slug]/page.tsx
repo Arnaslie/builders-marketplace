@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AgentPanel } from "../../../components/agent-panel";
 import { MaterialsGrid } from "../../../components/materials-grid";
 import { ProjectImage } from "../../../components/project-image";
 import { getProject } from "../../../lib/api/client";
@@ -40,6 +41,9 @@ export default async function ProjectPage({ params }: Props) {
 
       <h2>Materials and Tools</h2>
       <MaterialsGrid lines={project.materials} currency={project.currency} />
+
+      <h2>Shopping Agent</h2>
+      <AgentPanel projectId={project.id} slug={project.slug} lines={project.materials} currency={project.currency} />
 
       <h2>Steps</h2>
       <ol className="steps">

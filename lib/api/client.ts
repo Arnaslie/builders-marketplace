@@ -17,6 +17,8 @@ export type Recommendation = components["schemas"]["Recommendation"];
 export type BuildCartRequest = components["schemas"]["BuildCartRequest"];
 export type Cart = components["schemas"]["Cart"];
 export type CartLine = components["schemas"]["CartLine"];
+export type CartRequest = components["schemas"]["CartRequest"];
+export type SwapPick = components["schemas"]["SwapPick"];
 export type CheckoutConfig = components["schemas"]["CheckoutConfig"];
 export type Order = components["schemas"]["Order"];
 export type PayPalOrder = components["schemas"]["PayPalOrder"];
@@ -157,8 +159,14 @@ export async function getCheckoutConfig(): Promise<CheckoutConfig | null> {
   return (await res.json()) as CheckoutConfig;
 }
 
+// POST /cart: price a cart with no LLM call. With request.swaps, exactly those swaps (re-checked
+// by the server); without it, the deterministic budget rules. Checkout charges this same cart.
+export function priceCart(request: CartRequest): Promise<Cart> {
+  return postJson<Cart>("/cart", request);
+}
+
 // The server rebuilds the cart from the same request and creates the PayPal order for its total.
-export function createCheckoutOrder(request: BuildCartRequest): Promise<PayPalOrder> {
+export function createCheckoutOrder(request: CartRequest): Promise<PayPalOrder> {
   return postJson<PayPalOrder>("/checkout/orders", request);
 }
 

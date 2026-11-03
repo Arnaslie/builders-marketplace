@@ -151,6 +151,23 @@ class BuildCartRequest(ContractModel):
     budget: Price | None = Field(default=None, description="Optional cap on the cart subtotal, in the project currency.")
 
 
+class SwapPick(ContractModel):
+    line_id: str
+    alt_index: int = Field(ge=0, description="Position in that line's alternatives (Swap.alt_index from a built cart).")
+
+
+class CartRequest(BuildCartRequest):
+    """Price a cart without running the agent: for the cart page and PayPal checkout.
+
+    swaps omitted -> the deterministic rules pick swaps for the budget.
+    swaps given   -> exactly these swaps (usually the ones the agent chose on the project page).
+    The server re-checks every pick (a listed, cheaper alternative of a line not owned) and
+    prices the cart itself, so a tampered link can only choose among real listed products.
+    """
+
+    swaps: list[SwapPick] | None = Field(default=None, max_length=200)
+
+
 class CartLine(ContractModel):
     line_id: str
     name: str
@@ -163,10 +180,15 @@ class CartLine(ContractModel):
     product_url: str
     channel3_product_id: str | None
     swapped: bool = Field(description="True when this line uses a cheaper alternative (see swaps).")
+    reason: str | None = Field(
+        default=None,
+        description="One-sentence reason the agent gave for swapping this line; null when the line is unchanged or the agent was not used.",
+    )
 
 
 class Swap(ContractModel):
     line_id: str
+    alt_index: int = Field(description="Position of `to` in the line's alternatives; send it back in CartRequest.swaps.")
     from_: ProductOption = Field(alias="from")
     to: ProductOption
     reason: str
@@ -182,6 +204,10 @@ class Cart(ContractModel):
     subtotal: Price
     budget: Price | None
     within_budget: bool = Field(description="subtotal <= budget; always true when no budget was given.")
+    agent_used: bool = Field(
+        default=False,
+        description="True when the swaps and reasons came from the Claude agent; false when the deterministic rules built the cart.",
+    )
 
 
 # --- Checkout -------------------------------------------------------------------------------

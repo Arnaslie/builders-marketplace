@@ -89,6 +89,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Price Cart
+         * @description The cart page's view of a cart: the same pricing /checkout/orders charges, with no LLM call.
+         */
+        post: operations["priceCart"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/checkout/config": {
         parameters: {
             query?: never;
@@ -122,8 +142,8 @@ export interface paths {
          * Create Checkout Order
          * @description Create a PayPal order for the cart the server builds from this request.
          *
-         *     The client sends the same input as /agent/build-cart, not prices: the server recomputes the
-         *     cart, so a tampered browser cannot set its own total.
+         *     The client sends the same input as POST /cart, not prices: the server recomputes the cart
+         *     (re-checking any swaps), so a tampered browser cannot set its own total.
          */
         post: operations["createCheckoutOrder"];
         delete?: never;
@@ -251,6 +271,12 @@ export interface components {
              * @description subtotal <= budget; always true when no budget was given.
              */
             withinBudget: boolean;
+            /**
+             * Agentused
+             * @description True when the swaps and reasons came from the Claude agent; false when the deterministic rules built the cart.
+             * @default false
+             */
+            agentUsed: boolean;
         };
         /** CartLine */
         CartLine: {
@@ -294,6 +320,36 @@ export interface components {
              * @description True when this line uses a cheaper alternative (see swaps).
              */
             swapped: boolean;
+            /**
+             * Reason
+             * @description One-sentence reason the agent gave for swapping this line; null when the line is unchanged or the agent was not used.
+             */
+            reason?: string | null;
+        };
+        /**
+         * CartRequest
+         * @description Price a cart without running the agent: for the cart page and PayPal checkout.
+         *
+         *     swaps omitted -> the deterministic rules pick swaps for the budget.
+         *     swaps given   -> exactly these swaps (usually the ones the agent chose on the project page).
+         *     The server re-checks every pick (a listed, cheaper alternative of a line not owned) and
+         *     prices the cart itself, so a tampered link can only choose among real listed products.
+         */
+        CartRequest: {
+            /** Projectid */
+            projectId: string;
+            /**
+             * Owned
+             * @description MaterialLine ids the user already has; left out of the cart.
+             */
+            owned?: string[];
+            /**
+             * Budget
+             * @description Optional cap on the cart subtotal, in the project currency.
+             */
+            budget?: string | null;
+            /** Swaps */
+            swaps?: components["schemas"]["SwapPick"][] | null;
         };
         /**
          * CheckoutConfig
@@ -637,6 +693,11 @@ export interface components {
         Swap: {
             /** Lineid */
             lineId: string;
+            /**
+             * Altindex
+             * @description Position of `to` in the line's alternatives; send it back in CartRequest.swaps.
+             */
+            altIndex: number;
             from: components["schemas"]["ProductOption"];
             to: components["schemas"]["ProductOption"];
             /** Reason */
@@ -647,6 +708,16 @@ export interface components {
              * @example 24.99
              */
             savings: string;
+        };
+        /** SwapPick */
+        SwapPick: {
+            /** Lineid */
+            lineId: string;
+            /**
+             * Altindex
+             * @description Position in that line's alternatives (Swap.alt_index from a built cart).
+             */
+            altIndex: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -827,6 +898,44 @@ export interface operations {
             };
         };
     };
+    priceCart: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CartRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Cart"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid body, unknown owned line id, or invalid swap */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getCheckoutConfig: {
         parameters: {
             query?: never;
@@ -863,7 +972,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BuildCartRequest"];
+                "application/json": components["schemas"]["CartRequest"];
             };
         };
         responses: {
@@ -883,7 +992,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Invalid body, unknown owned line id, or empty cart */
+            /** @description Invalid body, unknown owned line id, invalid swap, or empty cart */
             422: {
                 headers: {
                     [name: string]: unknown;

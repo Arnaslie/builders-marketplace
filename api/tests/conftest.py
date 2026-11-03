@@ -26,3 +26,10 @@ def client(fake_paypal: FakePayPal) -> TestClient:
     app = create_app(cors_origins=[FRONTEND])
     app.state.paypal = fake_paypal.client()
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def no_llm_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    # No test may reach the real Anthropic API, even when LLM_API_KEY is set in the shell.
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("LLM_MODEL", raising=False)

@@ -175,6 +175,44 @@
         }
       }
     },
+    "/cart": {
+      "post": {
+        "tags": [
+          "agent"
+        ],
+        "summary": "Price Cart",
+        "description": "The cart page's view of a cart: the same pricing /checkout/orders charges, with no LLM call.",
+        "operationId": "priceCart",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Cart"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Invalid body, unknown owned line id, or invalid swap"
+          }
+        }
+      }
+    },
     "/checkout/config": {
       "get": {
         "tags": [
@@ -206,13 +244,13 @@
           "checkout"
         ],
         "summary": "Create Checkout Order",
-        "description": "Create a PayPal order for the cart the server builds from this request.\n\nThe client sends the same input as /agent/build-cart, not prices: the server recomputes the\ncart, so a tampered browser cannot set its own total.",
+        "description": "Create a PayPal order for the cart the server builds from this request.\n\nThe client sends the same input as POST /cart, not prices: the server recomputes the cart\n(re-checking any swaps), so a tampered browser cannot set its own total.",
         "operationId": "createCheckoutOrder",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BuildCartRequest"
+                "$ref": "#/components/schemas/CartRequest"
               }
             }
           },
@@ -233,7 +271,7 @@
             "description": "Not found"
           },
           "422": {
-            "description": "Invalid body, unknown owned line id, or empty cart"
+            "description": "Invalid body, unknown owned line id, invalid swap, or empty cart"
           },
           "502": {
             "description": "PayPal rejected the request or did not respond; no order was stored"
@@ -500,6 +538,12 @@
             "type": "boolean",
             "title": "Withinbudget",
             "description": "subtotal <= budget; always true when no budget was given."
+          },
+          "agentUsed": {
+            "type": "boolean",
+            "title": "Agentused",
+            "description": "True when the swaps and reasons came from the Claude agent; false when the deterministic rules built the cart.",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -588,6 +632,18 @@
             "type": "boolean",
             "title": "Swapped",
             "description": "True when this line uses a cheaper alternative (see swaps)."
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "One-sentence reason the agent gave for swapping this line; null when the line is unchanged or the agent was not used."
           }
         },
         "additionalProperties": false,
@@ -606,6 +662,61 @@
           "swapped"
         ],
         "title": "CartLine"
+      },
+      "CartRequest": {
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "title": "Projectid"
+          },
+          "owned": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Owned",
+            "description": "MaterialLine ids the user already has; left out of the cart."
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{1,7}\\.\\d{2}$",
+                "description": "Decimal amount as a string with exactly two decimals (PayPal amount.value format).",
+                "examples": [
+                  "24.99"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget",
+            "description": "Optional cap on the cart subtotal, in the project currency."
+          },
+          "swaps": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SwapPick"
+                },
+                "type": "array",
+                "maxItems": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Swaps"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "projectId"
+        ],
+        "title": "CartRequest",
+        "description": "Price a cart without running the agent: for the cart page and PayPal checkout.\n\nswaps omitted -> the deterministic rules pick swaps for the budget.\nswaps given   -> exactly these swaps (usually the ones the agent chose on the project page).\nThe server re-checks every pick (a listed, cheaper alternative of a line not owned) and\nprices the cart itself, so a tampered link can only choose among real listed products."
       },
       "CheckoutConfig": {
         "properties": {
@@ -1360,6 +1471,11 @@
             "type": "string",
             "title": "Lineid"
           },
+          "altIndex": {
+            "type": "integer",
+            "title": "Altindex",
+            "description": "Position of `to` in the line's alternatives; send it back in CartRequest.swaps."
+          },
           "from": {
             "$ref": "#/components/schemas/ProductOption"
           },
@@ -1384,12 +1500,34 @@
         "type": "object",
         "required": [
           "lineId",
+          "altIndex",
           "from",
           "to",
           "reason",
           "savings"
         ],
         "title": "Swap"
+      },
+      "SwapPick": {
+        "properties": {
+          "lineId": {
+            "type": "string",
+            "title": "Lineid"
+          },
+          "altIndex": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Altindex",
+            "description": "Position in that line's alternatives (Swap.alt_index from a built cart)."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lineId",
+          "altIndex"
+        ],
+        "title": "SwapPick"
       },
       "ValidationError": {
         "properties": {

@@ -1,19 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PayPalCheckout } from "../../components/paypal-checkout";
-import { ApiError, buildCart, getProject, usingApi, type BuildCartRequest, type Cart } from "../../lib/api/client";
+import { ApiError, getProject, priceCart, usingApi, type Cart } from "../../lib/api/client";
+import { cartRequestFromParams } from "../../lib/cart-link";
 import { formatMoney } from "../../lib/money";
 
 export const metadata = { title: "Cart | DIY Wikipedia" };
 
-// The cart is described by the URL, so the agent panel (and anyone else) can link to it:
-//   /cart?project=<slug>&owned=<line id>,<line id>&budget=200.00
-// The server builds the cart from these values; the same values go to POST /checkout/orders,
-// where the API builds it again and sets the PayPal total itself.
+// The cart is described by the URL (format in lib/cart-link.ts), so the agent panel can link to
+// its exact cart. POST /cart prices it with no LLM call; the same request goes to
+// POST /checkout/orders, where the API prices it again and sets the PayPal total itself.
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
 
 const one = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
-const MONEY = /^\d{1,7}\.\d{2}$/;
 
 export default async function CartPage({ searchParams }: Props) {
   const params = await searchParams;
@@ -45,27 +44,24 @@ export default async function CartPage({ searchParams }: Props) {
   const project = await getProject(slug);
   if (!project) notFound();
 
-  const owned = (one(params.owned) ?? "")
-    .split(",")
-    .map((id) => id.trim())
-    .filter(Boolean);
-  const budget = one(params.budget);
-  const request: BuildCartRequest = { projectId: project.id, owned, ...(budget && MONEY.test(budget) ? { budget } : {}) };
+  const request = cartRequestFromParams(project.id, params);
+  const invalidLink = (detail: string) => (
+    <main>
+      <h1>Cart</h1>
+      <p className="error">This cart link is not valid: {detail}</p>
+      <p>
+        <Link href={`/projects/${project.slug}`}>Return to {project.title}</Link>
+      </p>
+    </main>
+  );
+  if (request === null) return invalidLink("the swaps in this link are malformed");
 
   let cart: Cart;
   try {
-    cart = await buildCart(request);
+    cart = await priceCart(request);
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 422) throw error;
-    return (
-      <main>
-        <h1>Cart</h1>
-        <p className="error">This cart link is not valid: {error.detail}</p>
-        <p>
-          <Link href={`/projects/${project.slug}`}>Return to {project.title}</Link>
-        </p>
-      </main>
-    );
+    return invalidLink(error.detail);
   }
 
   return (
