@@ -40,10 +40,17 @@ async function radioLabel(radio: Locator): Promise<string> {
 
 // Review page: choose to pay in full, and make sure a non-installment funding source is selected.
 // Both are optional because PayPal only shows them for some sandbox accounts and amounts.
+// PayPal renders the schedule ("Pay in full $X today" / "Pay in 4" / "Pay Monthly") as checkboxes
+// that behave like a radio group, and has used real radios before, so accept either role.
 async function choosePayInFull(popup: Page) {
-  const payInFull = popup.getByRole("radio", { name: /pay in full|full amount/i }).or(popup.getByLabel(/pay in full/i));
-  if (await payInFull.first().isVisible().catch(() => false)) {
-    await payInFull.first().check();
+  const payInFull = popup
+    .getByRole("checkbox", { name: /pay in full|full amount/i })
+    .or(popup.getByRole("radio", { name: /pay in full|full amount/i }))
+    .first();
+  if (await payInFull.isVisible().catch(() => false)) {
+    if (!(await payInFull.isChecked())) await payInFull.check();
+    await expect(payInFull, "buyer must pay in full, not in installments").toBeChecked();
+    return;
   }
 
   const radios = await popup.getByRole("radio").all();
@@ -88,9 +95,16 @@ async function approveInPopup(popup: Page) {
   // After login PayPal can show one or more pages: payment method, pay in full vs installments,
   // then the final confirm. Work through them until the popup closes (the buyer approved).
   for (let pageNo = 1; pageNo <= 4 && !popup.isClosed(); pageNo++) {
-    await test.step(`PayPal review page ${pageNo}: payment method, pay in full, confirm`, async () => {
+    const approved = await test.step(`PayPal review page ${pageNo}: payment method, pay in full, confirm`, async () => {
       const primary = popup.getByRole("button", { name: PRIMARY }).or(popup.locator("#payment-submit-btn")).first();
-      await expect(primary).toBeVisible({ timeout: 60_000 });
+      try {
+        await primary.waitFor({ state: "visible", timeout: 60_000 });
+      } catch (err) {
+        // The previous click approved the payment and PayPal closed the popup while we looked
+        // for another page. That is success, not a failure.
+        if (popup.isClosed()) return true;
+        throw err;
+      }
       await choosePayInFull(popup);
       await primary.click();
       // Either the popup closes (approved) or this page's button goes away (next page loaded).
@@ -98,7 +112,9 @@ async function approveInPopup(popup: Page) {
         popup.waitForEvent("close", { timeout: 60_000 }),
         primary.waitFor({ state: "detached", timeout: 60_000 }),
       ]).catch(() => {});
+      return popup.isClosed();
     });
+    if (approved) break;
   }
   expect(popup.isClosed(), "PayPal popup should close once the buyer approves").toBe(true);
 }
