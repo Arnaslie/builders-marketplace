@@ -1,7 +1,8 @@
 // PayPal sandbox smoke test: one real sandbox payment through the buyer's own UI.
 //
 //   1. Open a cart on the deployed site and click the PayPal button (inside PayPal's iframe).
-//   2. Log in to the PayPal popup as the sandbox Personal (buyer) account and approve.
+//   2. Log in to the PayPal popup as the sandbox Personal (buyer) account, confirm the payment
+//      method, choose to pay in full (not installments), and approve.
 //   3. The app captures the order and lands on /checkout/success?order=<PayPal order id>.
 //   4. Read the stored order back from the API and check it is paid and has a capture id.
 //
@@ -14,7 +15,7 @@
 // (GitHub Actions secrets in CI, a gitignored .env locally). It is never written to the repo.
 // PayPal's own login pages change without notice; the selectors below match by role and text
 // first and fall back to PayPal's long-standing element ids.
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const BUYER_EMAIL = process.env.PAYPAL_SANDBOX_BUYER_EMAIL;
 const BUYER_PASSWORD = process.env.PAYPAL_SANDBOX_BUYER_PASSWORD;
@@ -23,27 +24,83 @@ const PROJECT = process.env.CART_PROJECT ?? "simple-wooden-chair";
 
 test.skip(!BUYER_EMAIL || !BUYER_PASSWORD, "PAYPAL_SANDBOX_BUYER_EMAIL / _PASSWORD are not set");
 
+// Buttons that move the review flow forward. Anchored so they never match
+// "Pay with Debit or Credit Card", "Pay in 4" or "Pay Later" offers.
+const PRIMARY = /^(next|continue|continue to review|review order|complete purchase|pay now|pay|agree (&|and) (pay|continue))$/i;
+// Installment / credit options the buyer must NOT pick: the test expects one full capture.
+const INSTALLMENTS = /pay in \d|pay later|pay monthly|installment|paypal credit/i;
+
+async function radioLabel(radio: Locator): Promise<string> {
+  return radio.evaluate((el) => {
+    const input = el as HTMLInputElement;
+    const own = input.labels?.[0]?.innerText ?? el.getAttribute("aria-label") ?? "";
+    return own || (el.closest("label, li, [role=listitem]") as HTMLElement | null)?.innerText || "";
+  });
+}
+
+// Review page: choose to pay in full, and make sure a non-installment funding source is selected.
+// Both are optional because PayPal only shows them for some sandbox accounts and amounts.
+async function choosePayInFull(popup: Page) {
+  const payInFull = popup.getByRole("radio", { name: /pay in full|full amount/i }).or(popup.getByLabel(/pay in full/i));
+  if (await payInFull.first().isVisible().catch(() => false)) {
+    await payInFull.first().check();
+  }
+
+  const radios = await popup.getByRole("radio").all();
+  let fundingOk = false;
+  for (const radio of radios) {
+    if (!(await radio.isChecked().catch(() => false))) continue;
+    fundingOk = !INSTALLMENTS.test(await radioLabel(radio));
+    if (fundingOk) break;
+  }
+  if (fundingOk || radios.length === 0) return;
+
+  // Nothing safe is selected (or an installment plan is): pick the first plain funding source.
+  for (const radio of radios) {
+    if (!(await radio.isVisible().catch(() => false))) continue;
+    if (INSTALLMENTS.test(await radioLabel(radio))) continue;
+    await radio.check();
+    return;
+  }
+  throw new Error("PayPal review page offers no pay-in-full funding source");
+}
+
 // Sign in to the PayPal popup and approve the payment.
 async function approveInPopup(popup: Page) {
   await popup.waitForLoadState("domcontentloaded");
 
-  const email = popup.getByRole("textbox", { name: /email|mobile/i }).or(popup.locator("#email"));
-  await email.first().fill(BUYER_EMAIL!);
+  await test.step("PayPal login: email", async () => {
+    const email = popup.getByRole("textbox", { name: /email|mobile/i }).or(popup.locator("#email"));
+    await email.first().fill(BUYER_EMAIL!);
+    // Split login. #password is already in the DOM (off-screen) before Next, so its
+    // visibility cannot tell us whether Next is needed. The Next button can.
+    const next = popup.getByRole("button", { name: /^next$/i }).or(popup.locator("#btnNext")).first();
+    if (await next.isVisible().catch(() => false)) await next.click();
+  });
 
-  // Some sandbox sessions show email and password together; most split them with a Next button.
-  const password = popup.locator("#password");
-  if (!(await password.isVisible().catch(() => false))) {
-    await popup.getByRole("button", { name: /^next$/i }).or(popup.locator("#btnNext")).first().click();
+  await test.step("PayPal login: password", async () => {
+    const login = popup.getByRole("button", { name: /^log ?in$/i }).or(popup.locator("#btnLogin")).first();
+    await expect(login).toBeVisible({ timeout: 30_000 });
+    await popup.locator("#password").fill(BUYER_PASSWORD!);
+    await login.click();
+  });
+
+  // After login PayPal can show one or more pages: payment method, pay in full vs installments,
+  // then the final confirm. Work through them until the popup closes (the buyer approved).
+  for (let pageNo = 1; pageNo <= 4 && !popup.isClosed(); pageNo++) {
+    await test.step(`PayPal review page ${pageNo}: payment method, pay in full, confirm`, async () => {
+      const primary = popup.getByRole("button", { name: PRIMARY }).or(popup.locator("#payment-submit-btn")).first();
+      await expect(primary).toBeVisible({ timeout: 60_000 });
+      await choosePayInFull(popup);
+      await primary.click();
+      // Either the popup closes (approved) or this page's button goes away (next page loaded).
+      await Promise.race([
+        popup.waitForEvent("close", { timeout: 60_000 }),
+        primary.waitFor({ state: "detached", timeout: 60_000 }),
+      ]).catch(() => {});
+    });
   }
-  await password.fill(BUYER_PASSWORD!);
-  await popup.getByRole("button", { name: /log ?in/i }).or(popup.locator("#btnLogin")).first().click();
-
-  // Review page. The label has been "Pay Now", "Complete Purchase" and "Continue to Review" over time.
-  await popup
-    .getByRole("button", { name: /pay now|complete purchase|continue to review/i })
-    .or(popup.locator("#payment-submit-btn"))
-    .first()
-    .click({ timeout: 60_000 });
+  expect(popup.isClosed(), "PayPal popup should close once the buyer approves").toBe(true);
 }
 
 test("sandbox buyer pays for a cart and the order is stored as paid", async ({ page, request }) => {

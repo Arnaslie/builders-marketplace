@@ -9,7 +9,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: ".",
   testMatch: "*.e2e.ts", // not *.spec.ts, so the root vitest run never picks this up
-  timeout: 180_000, // free Render instances cold start, and the PayPal sandbox is slow
+  timeout: 240_000, // free Render instances cold start, and the PayPal sandbox is slow
   expect: { timeout: 30_000 },
   retries: 1, // the sandbox login page is known to be flaky
   workers: 1, // one real sandbox order at a time
