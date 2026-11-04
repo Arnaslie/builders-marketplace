@@ -4,7 +4,10 @@
 #        FastAPI on Python 3.12 managed by uv (api/pyproject.toml, api/uv.lock).
 services:
   - type: web
-    name: diy-wikipedia
+    # Exact name of the live service at https://diy-wikipedia.onrender.com (created by hand on
+    # 2026-10-31). Matching it here adopts that service into this Blueprint instead of keeping a
+    # second, Blueprint-made copy. Do not rename without migrating the live service first.
+    name: diy wikipedia
     runtime: node            # native runtime, per spec "runtime" field
     plan: free               # change if the free plan's spin-down hurts the demo
     buildCommand: npm ci && npm run build        # npm ci installs exactly what package-lock.json pins
