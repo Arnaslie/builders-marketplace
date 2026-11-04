@@ -67,23 +67,72 @@ function summarise(project: Project): ProjectSummary {
 }
 
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  return fetch(`${API_URL}${path}`, { cache: "no-store", ...init });
+  const method = (init?.method ?? "GET").toUpperCase();
+  // Only GET is retried. A retried POST could charge twice (checkout) or save a draft twice.
+  if (method !== "GET") return fetch(`${API_URL}${path}`, { cache: "no-store", ...init });
+  return getWithRetry(`${API_URL}${path}`, init);
+}
+
+// Render's free plan spins the API down when idle and takes up to ~50s to wake it. In that window
+// requests hang or get 502/503/504. Worst case here: 3 x 14s + 2s + 4s = 48s.
+const ATTEMPTS = 3;
+const ATTEMPT_TIMEOUT_MS = 14_000;
+const BACKOFF_MS = [2_000, 4_000];
+const RETRYABLE = new Set([502, 503, 504]);
+
+async function getWithRetry(url: string, init?: RequestInit): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, BACKOFF_MS[attempt - 1]));
+    try {
+      const res = await fetch(url, { cache: "no-store", ...init, signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS) });
+      // On the last attempt hand back whatever came, so the caller sees the real status.
+      if (!RETRYABLE.has(res.status) || attempt === ATTEMPTS - 1) return res;
+    } catch (err) {
+      lastError = err; // network error or timeout
+    }
+  }
+  throw lastError;
+}
+
+// True for "the API is not answering" (network error, timeout, 5xx), as opposed to a real
+// answer such as 404. Read-only listings fall back to the fixtures for these.
+function isUnavailable(err: unknown): boolean {
+  return !(err instanceof ApiUnavailableStatus) || err.status >= 500;
+}
+
+class ApiUnavailableStatus extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+  }
 }
 
 export async function listProjects(): Promise<ProjectSummary[]> {
   if (!usingApi) return (await loadFixtures()).map(summarise);
-  const res = await apiFetch("/projects");
-  if (!res.ok) throw new Error(`GET /projects failed: HTTP ${res.status}`);
-  return (await res.json()) as ProjectSummary[];
+  try {
+    const res = await apiFetch("/projects");
+    if (!res.ok) throw new ApiUnavailableStatus(res.status, `GET /projects failed: HTTP ${res.status}`);
+    return (await res.json()) as ProjectSummary[];
+  } catch (err) {
+    if (!isUnavailable(err)) throw err;
+    console.warn("API unavailable for GET /projects, serving fixtures:", err);
+    return (await loadFixtures()).map(summarise);
+  }
 }
 
 // Returns null for an unknown slug so the page can call notFound().
 export async function getProject(slug: string): Promise<Project | null> {
   if (!usingApi) return (await loadFixtures()).find((p) => p.slug === slug) ?? null;
-  const res = await apiFetch(`/projects/${encodeURIComponent(slug)}`);
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`GET /projects/${slug} failed: HTTP ${res.status}`);
-  return (await res.json()) as Project;
+  try {
+    const res = await apiFetch(`/projects/${encodeURIComponent(slug)}`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new ApiUnavailableStatus(res.status, `GET /projects/${slug} failed: HTTP ${res.status}`);
+    return (await res.json()) as Project;
+  } catch (err) {
+    if (!isUnavailable(err)) throw err;
+    console.warn(`API unavailable for GET /projects/${slug}, serving fixtures:`, err);
+    return (await loadFixtures()).find((p) => p.slug === slug) ?? null;
+  }
 }
 
 export type RecommendationResult =
