@@ -74,20 +74,40 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
 }
 
 // Render's free plan spins the API down when idle and takes up to ~50s to wake it. In that window
-// requests hang or get 502/503/504. Worst case here: 3 x 14s + 2s + 4s = 48s.
+// requests hang or get 429/502/503/504 (429 comes from Render's proxy, not from FastAPI).
+// Worst case here: 3 x 14s + 2s + 4s = 48s.
 const ATTEMPTS = 3;
 const ATTEMPT_TIMEOUT_MS = 14_000;
 const BACKOFF_MS = [2_000, 4_000];
-const RETRYABLE = new Set([502, 503, 504]);
+const RETRYABLE = new Set([429, 502, 503, 504]);
+
+// Retry-After as milliseconds (seconds or an HTTP date), or undefined if absent/unparseable.
+function retryAfterMs(res: Response | undefined): number | undefined {
+  const value = res?.headers.get("retry-after");
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now());
+}
 
 async function getWithRetry(url: string, init?: RequestInit): Promise<Response> {
   let lastError: unknown;
+  let lastRetryable: Response | undefined;
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
-    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, BACKOFF_MS[attempt - 1]));
+    if (attempt > 0) {
+      // Honour Retry-After, but never wait longer than this attempt's backoff slot, so the
+      // worst case above still holds.
+      const slot = BACKOFF_MS[attempt - 1];
+      const wait = Math.min(retryAfterMs(lastRetryable) ?? slot, slot);
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+    lastRetryable = undefined;
     try {
       const res = await fetch(url, { cache: "no-store", ...init, signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS) });
       // On the last attempt hand back whatever came, so the caller sees the real status.
       if (!RETRYABLE.has(res.status) || attempt === ATTEMPTS - 1) return res;
+      lastRetryable = res;
     } catch (err) {
       lastError = err; // network error or timeout
     }
@@ -95,10 +115,10 @@ async function getWithRetry(url: string, init?: RequestInit): Promise<Response> 
   throw lastError;
 }
 
-// True for "the API is not answering" (network error, timeout, 5xx), as opposed to a real
+// True for "the API is not answering" (network error, timeout, 429, 5xx), as opposed to a real
 // answer such as 404. Read-only listings fall back to the fixtures for these.
 function isUnavailable(err: unknown): boolean {
-  return !(err instanceof ApiUnavailableStatus) || err.status >= 500;
+  return !(err instanceof ApiUnavailableStatus) || err.status === 429 || err.status >= 500;
 }
 
 class ApiUnavailableStatus extends Error {
