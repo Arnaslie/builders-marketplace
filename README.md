@@ -23,7 +23,7 @@ Judges: log in at the PayPal checkout popup with the sandbox buyer below. Sandbo
 
 | Role | Email | Password |
 |------|-------|----------|
-| Sandbox buyer (personal) | `TODO: sb-xxxx@personal.example.com` | `TODO` |
+| Sandbox buyer (personal) | `sb-udxlx53723459@personal.example.com` | `j^B3|NPf` |
 
 `TODO (infra dev): paste buyer credentials from the PayPal Developer Dashboard, Testing Tools > Sandbox Accounts. Do NOT paste the app Client Secret here.`
 
