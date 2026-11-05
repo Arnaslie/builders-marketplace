@@ -86,3 +86,18 @@ export function arrangeGroups<T>(
   }
   return out;
 }
+
+// Enterprise path: the grid's row-group keys are category values. Tools sort before materials,
+// and an unknown key sorts last so a new category never hides the known ones.
+export function compareGroupKeys(a: string | null | undefined, b: string | null | undefined): number {
+  const rank = (k: string | null | undefined) => {
+    const i = GROUP_ORDER.indexOf(k as Category);
+    return i === -1 ? GROUP_ORDER.length : i;
+  };
+  return rank(a) - rank(b);
+}
+
+// Display label for a group key ("tool" -> "Tools"); an unknown key is shown as-is.
+export function groupLabel(key: string | null | undefined): string {
+  return key != null && key in GROUP_LABEL ? GROUP_LABEL[key as Category] : (key ?? "");
+}
