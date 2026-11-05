@@ -5,6 +5,8 @@
 //      method, choose to pay in full (not installments), and approve.
 //   3. The app captures the order and lands on /checkout/success?order=<PayPal order id>.
 //   4. Read the stored order back from the API and check it is paid and has a capture id.
+//   5. Check the captured total equals the cart subtotal the API quoted before checkout, and
+//      print one E2E_EVIDENCE line (order id, capture id, amount) for the run log.
 //
 // Docs this file follows:
 //   Popups:  https://playwright.dev/docs/pages#handling-popups
@@ -29,6 +31,9 @@ test.skip(!BUYER_EMAIL || !BUYER_PASSWORD, "PAYPAL_SANDBOX_BUYER_EMAIL / _PASSWO
 const PRIMARY = /^(next|continue|continue to review|review order|complete purchase|pay now|pay|agree (&|and) (pay|continue))$/i;
 // Installment / credit options the buyer must NOT pick: the test expects one full capture.
 const INSTALLMENTS = /pay in \d|pay later|pay monthly|installment|paypal credit/i;
+
+// Money arrives as "123.45" strings; compare in integer cents so float rounding cannot hide a gap.
+const cents = (value: string) => Math.round(Number(value) * 100);
 
 async function radioLabel(radio: Locator): Promise<string> {
   return radio.evaluate((el) => {
@@ -128,6 +133,14 @@ test("sandbox buyer pays for a cart and the order is stored as paid", async ({ p
   const config = await (await request.get(`${API_URL}/checkout/config`)).json();
   expect(config.env, "this test must never run against live PayPal").toBe("sandbox");
 
+  // Price the same cart the page prices (project, nothing owned, default swaps), so the stored
+  // order can be checked against a subtotal the browser never touched.
+  const project = await (await request.get(`${API_URL}/projects/${encodeURIComponent(PROJECT)}`)).json();
+  const quoteRes = await request.post(`${API_URL}/cart`, { data: { projectId: project.id, owned: [] } });
+  expect(quoteRes.status()).toBe(200);
+  const quote = await quoteRes.json();
+  expect(quote.lines.length, "cart must have something to pay for").toBeGreaterThan(0);
+
   await page.goto(`/cart?project=${encodeURIComponent(PROJECT)}`);
   await expect(page.getByRole("heading", { name: "Cart", level: 1 })).toBeVisible();
   await expect(page.getByText("PayPal sandbox.", { exact: false })).toBeVisible();
@@ -153,4 +166,23 @@ test("sandbox buyer pays for a cart and the order is stored as paid", async ({ p
   expect(order.paypalOrderId).toBe(orderId);
   expect(order.paypalCaptureId).toBeTruthy();
   expect(order.lines.length).toBeGreaterThan(0);
+
+  // The API marks an order "paid" only when PayPal reports the capture COMPLETED, and the PayPal
+  // amount is the server's cart subtotal, so these three must agree to the cent.
+  const lineSum = order.lines.reduce((sum: number, line: { lineTotal: string }) => sum + cents(line.lineTotal), 0);
+  expect(order.currency).toBe(quote.currency);
+  expect(cents(order.total), "captured total must equal the cart subtotal").toBe(cents(quote.subtotal));
+  expect(lineSum, "order lines must sum to the captured total").toBe(cents(order.total));
+
+  const evidence = {
+    paypalOrderId: order.paypalOrderId,
+    captureId: order.paypalCaptureId,
+    status: order.status,
+    total: order.total,
+    currency: order.currency,
+    cartSubtotal: quote.subtotal,
+    lines: order.lines.length,
+  };
+  test.info().annotations.push({ type: "evidence", description: JSON.stringify(evidence) });
+  console.log(`E2E_EVIDENCE ${JSON.stringify(evidence)}`);
 });
