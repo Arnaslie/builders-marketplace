@@ -30,7 +30,7 @@ import { formatCents, formatMoney } from "../lib/money";
 import {
   EmptyCell,
   ImageCell,
-  RetailerCell,
+  BuyCell,
   theme,
   toRow,
   type MaterialsGridProps,
@@ -91,7 +91,8 @@ export function EnterpriseMaterialsGrid({ lines, currency, licenseKey }: Materia
         width: 110,
         valueFormatter: (p: ValueFormatterParams<Row, string>) => (p.value ? formatMoney(p.value, currency) : ""),
       },
-      { field: "retailer", headerName: "Retailer", width: 160, cellRenderer: RetailerCell },
+      { field: "retailer", headerName: "Retailer", width: 140 },
+      { colId: "buy", headerName: "Buy link", width: 90, sortable: false, resizable: false, cellRenderer: BuyCell },
       {
         field: "owned",
         headerName: "Already own it",
