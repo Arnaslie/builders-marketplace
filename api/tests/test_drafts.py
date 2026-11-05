@@ -49,9 +49,11 @@ def test_happy_path_prices_matched_line_from_cache(api: TestClient, monkeypatch)
     assert line["retailer"] == "homedepot.com" and line["channel3ProductId"] == "c3pine22"
     assert rec["estimatedTotal"] == "13.88"
     assert (rec["pricedCount"], rec["unpricedCount"]) == (1, 0)
-    # The model was asked for a forced tool call and shown the idea, but never a price.
+    # The model is offered submit_materials without a forced tool_choice (some models 400 on
+    # type "tool"/"any"), and shown the idea, but never a price.
     request = fake.requests[0]
-    assert request["tool_choice"] == {"type": "tool", "name": "submit_materials"}
+    assert "tool_choice" not in request
+    assert [t["name"] for t in request["tools"]] == ["submit_materials"]
     assert "Pine Stool" in request["messages"][0]["content"]
     assert "beginner" in request["messages"][0]["content"]
 
