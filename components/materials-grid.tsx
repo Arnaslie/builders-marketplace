@@ -32,7 +32,7 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 // The grid theme cannot read CSS variables, so these are the values from app/tokens.css as
 // literals. Keep them in sync with that file. The look is a 1994 bordered <table>: grey header
 // row, grey rules, Times, square corners.
-const theme = themeQuartz.withParams({
+export const theme = themeQuartz.withParams({
   accentColor: "#0000ee", // --color-link
   backgroundColor: "#ffffff", // --color-bg
   foregroundColor: "#000000", // --color-text

@@ -11,7 +11,7 @@ import type { components } from "./schema";
 export type Project = components["schemas"]["Project"];
 export type ProjectSummary = components["schemas"]["ProjectSummary"];
 export type MaterialLine = components["schemas"]["MaterialLine"];
-export type DraftLine = components["schemas"]["DraftLine"];
+export type DraftMaterial = components["schemas"]["DraftMaterial"];
 export type RecommendationRequest = components["schemas"]["RecommendationRequest"];
 export type Recommendation = components["schemas"]["Recommendation"];
 export type BuildCartRequest = components["schemas"]["BuildCartRequest"];
@@ -155,29 +155,21 @@ export async function getProject(slug: string): Promise<Project | null> {
   }
 }
 
-export type RecommendationResult =
-  | { kind: "saved"; recommendation: Recommendation }
-  | { kind: "local"; draft: RecommendationRequest };
-
-// With an API: POST /recommendations. Without one: nothing is sent; the caller shows the draft.
-export async function submitRecommendation(draft: RecommendationRequest): Promise<RecommendationResult> {
-  if (!usingApi) return { kind: "local", draft };
+// POST /recommendations: the server asks the LLM to draft the materials and prices them from its
+// cache. There is no fixture fallback (nothing to draft with), so without an API this throws.
+// Errors carry the server's own message, e.g. 503 "Drafting is not configured on this server".
+export async function submitRecommendation(idea: RecommendationRequest): Promise<Recommendation> {
+  if (!usingApi) throw new Error("Drafting needs the API, and NEXT_PUBLIC_API_URL is not set.");
   const res = await apiFetch("/recommendations", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(draft),
+    body: JSON.stringify(idea),
   });
   if (!res.ok) {
-    let detail = "";
-    try {
-      const body = (await res.json()) as { detail?: unknown };
-      if (Array.isArray(body.detail) && body.detail[0]?.msg) detail = `: ${body.detail[0].msg}`;
-    } catch {
-      // Non-JSON error body; the status code is enough.
-    }
-    throw new Error(`The API rejected the draft (HTTP ${res.status})${detail}`);
+    const { status, detail } = await apiError(res);
+    throw new Error(detail ? `Could not draft this idea (HTTP ${status}): ${detail}` : `Could not draft this idea (HTTP ${status}).`);
   }
-  return { kind: "saved", recommendation: (await res.json()) as Recommendation };
+  return (await res.json()) as Recommendation;
 }
 
 // --- Cart and PayPal checkout -------------------------------------------------------------

@@ -103,6 +103,7 @@
           "projects"
         ],
         "summary": "Create Recommendation",
+        "description": "Draft a project from an idea: the LLM lists the materials, prices come only from the cache.\n\nLines with no cache match are returned unpriced (null prices) and left out of the total. The\ndraft is kept in memory (lost on restart) and is never listed by GET /projects.",
         "operationId": "createRecommendation",
         "requestBody": {
           "content": {
@@ -124,6 +125,58 @@
                 }
               }
             }
+          },
+          "502": {
+            "description": "The drafting model failed or returned nothing usable"
+          },
+          "503": {
+            "description": "No LLM key is configured on the server"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/recommendations/{recommendation_id}": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Recommendation",
+        "description": "A draft by id (memory only: an API restart forgets it).",
+        "operationId": "getRecommendation",
+        "parameters": [
+          {
+            "name": "recommendation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Recommendation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recommendation"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
           },
           "422": {
             "description": "Validation Error",
@@ -753,16 +806,14 @@
         "title": "CheckoutConfig",
         "description": "What the browser needs to load the PayPal JS SDK. The client id is public by design."
       },
-      "DraftLine": {
+      "DraftMaterial": {
         "properties": {
           "name": {
             "type": "string",
-            "minLength": 1,
             "title": "Name"
           },
           "qty": {
             "type": "integer",
-            "minimum": 1.0,
             "title": "Qty"
           },
           "unit": {
@@ -776,6 +827,102 @@
               "material"
             ],
             "title": "Category"
+          },
+          "priced": {
+            "type": "boolean",
+            "title": "Priced"
+          },
+          "unitPrice": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{1,7}\\.\\d{2}$",
+                "description": "Decimal amount as a string with exactly two decimals (PayPal amount.value format).",
+                "examples": [
+                  "24.99"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unitprice"
+          },
+          "lineTotal": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^\\d{1,7}\\.\\d{2}$",
+                "description": "Decimal amount as a string with exactly two decimals (PayPal amount.value format).",
+                "examples": [
+                  "24.99"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Linetotal"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Z]{3}$",
+                "description": "ISO 4217 code.",
+                "examples": [
+                  "USD"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "retailer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retailer"
+          },
+          "productUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Producturl"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "channel3ProductId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel3Productid"
           }
         },
         "additionalProperties": false,
@@ -784,10 +931,18 @@
           "name",
           "qty",
           "unit",
-          "category"
+          "category",
+          "priced",
+          "unitPrice",
+          "lineTotal",
+          "currency",
+          "retailer",
+          "productUrl",
+          "imageUrl",
+          "channel3ProductId"
         ],
-        "title": "DraftLine",
-        "description": "A material or tool as a contributor describes it: no prices yet (Channel3 fills them in)."
+        "title": "DraftMaterial",
+        "description": "A drafted line. Priced only when it matched the Channel3 price cache; otherwise every price field is null."
       },
       "HTTPValidationError": {
         "properties": {
@@ -1389,23 +1544,69 @@
             "type": "string",
             "title": "Title"
           },
-          "summary": {
+          "description": {
             "type": "string",
-            "title": "Summary"
+            "title": "Description"
           },
-          "steps": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Steps"
+          "skillLevel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "beginner",
+                  "intermediate",
+                  "advanced"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skilllevel"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
           },
           "materials": {
             "items": {
-              "$ref": "#/components/schemas/DraftLine"
+              "$ref": "#/components/schemas/DraftMaterial"
             },
             "type": "array",
             "title": "Materials"
+          },
+          "estimatedTotal": {
+            "type": "string",
+            "pattern": "^\\d{1,7}\\.\\d{2}$",
+            "title": "Estimatedtotal",
+            "description": "Sum of line totals over the priced lines only; unpriced lines add nothing.",
+            "examples": [
+              "24.99"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "description": "ISO 4217 code.",
+            "examples": [
+              "USD"
+            ]
+          },
+          "pricedCount": {
+            "type": "integer",
+            "title": "Pricedcount"
+          },
+          "unpricedCount": {
+            "type": "integer",
+            "title": "Unpricedcount"
           },
           "createdAt": {
             "type": "string",
@@ -1420,12 +1621,18 @@
           "status",
           "slug",
           "title",
-          "summary",
-          "steps",
+          "description",
+          "skillLevel",
+          "imageUrl",
           "materials",
+          "estimatedTotal",
+          "currency",
+          "pricedCount",
+          "unpricedCount",
           "createdAt"
         ],
-        "title": "Recommendation"
+        "title": "Recommendation",
+        "description": "A draft project. Held in API memory only; never listed by GET /projects."
       },
       "RecommendationRequest": {
         "properties": {
@@ -1435,35 +1642,52 @@
             "minLength": 3,
             "title": "Title"
           },
-          "summary": {
+          "description": {
             "type": "string",
             "maxLength": 2000,
-            "title": "Summary"
+            "minLength": 10,
+            "title": "Description"
           },
-          "steps": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Steps"
+          "skillLevel": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "beginner",
+                  "intermediate",
+                  "advanced"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skilllevel",
+            "description": "The builder's skill level, if known."
           },
-          "materials": {
-            "items": {
-              "$ref": "#/components/schemas/DraftLine"
-            },
-            "type": "array",
-            "minItems": 1,
-            "title": "Materials"
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500,
+                "pattern": "^https?://\\S+$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl",
+            "description": "Optional reference photo (http/https)."
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
           "title",
-          "summary",
-          "materials"
+          "description"
         ],
-        "title": "RecommendationRequest"
+        "title": "RecommendationRequest",
+        "description": "An idea. The server asks the LLM to draft the materials list from it."
       },
       "Swap": {
         "properties": {

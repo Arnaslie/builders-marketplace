@@ -158,3 +158,43 @@ describe("read-only API calls while the API wakes up", () => {
     });
   });
 });
+
+describe("submitRecommendation", () => {
+  const idea = { title: "Pine Stool", description: "A small three-legged stool." };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("POSTs the idea once and returns the draft", async () => {
+    const draft = { id: "rec_1", status: "draft", materials: [], estimatedTotal: "0.00" };
+    const fetchMock = vi.fn().mockResolvedValueOnce(json(201, draft));
+    vi.stubGlobal("fetch", fetchMock);
+    const { submitRecommendation } = await loadClient();
+
+    await expect(submitRecommendation(idea)).resolves.toEqual(draft);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://api.test/recommendations");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual(idea);
+  });
+
+  it("surfaces the server's message on a 502 and does not retry the POST", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json(502, { detail: "The drafting model did not respond" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { submitRecommendation } = await loadClient();
+
+    await expect(submitRecommendation(idea)).rejects.toThrow(/HTTP 502.*drafting model did not respond/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails clearly when no API is configured", async () => {
+    vi.resetModules();
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "");
+    const { submitRecommendation } = await import("./client");
+    await expect(submitRecommendation(idea)).rejects.toThrow(/NEXT_PUBLIC_API_URL/);
+  });
+});

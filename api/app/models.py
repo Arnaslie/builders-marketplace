@@ -116,29 +116,57 @@ class ProjectSummary(ContractModel):
 
 
 class DraftLine(ContractModel):
-    """A material or tool as a contributor describes it: no prices yet (Channel3 fills them in)."""
+    """One material or tool as the LLM drafts it: no price (prices come only from the cache)."""
 
-    name: str = Field(min_length=1)
-    qty: int = Field(ge=1)
-    unit: str
+    name: str = Field(min_length=1, max_length=120)
+    qty: int = Field(ge=1, le=999)
+    unit: str = Field(min_length=1, max_length=30)
     category: Category
 
 
 class RecommendationRequest(ContractModel):
+    """An idea. The server asks the LLM to draft the materials list from it."""
+
     title: str = Field(min_length=3, max_length=120)
-    summary: str = Field(max_length=2000)
-    steps: list[str] = Field(default_factory=list)
-    materials: list[DraftLine] = Field(min_length=1)
+    description: str = Field(min_length=10, max_length=2000)
+    skill_level: Difficulty | None = Field(default=None, description="The builder's skill level, if known.")
+    image_url: str | None = Field(
+        default=None, pattern=r"^https?://\S+$", max_length=500, description="Optional reference photo (http/https)."
+    )
+
+
+class DraftMaterial(ContractModel):
+    """A drafted line. Priced only when it matched the Channel3 price cache; otherwise every price field is null."""
+
+    name: str
+    qty: int
+    unit: str
+    category: Category
+    priced: bool
+    unit_price: Price | None
+    line_total: Price | None
+    currency: Currency | None
+    retailer: str | None
+    product_url: str | None
+    image_url: str | None
+    channel3_product_id: str | None
 
 
 class Recommendation(ContractModel):
+    """A draft project. Held in API memory only; never listed by GET /projects."""
+
     id: str
     status: Literal["draft"]
     slug: str
     title: str
-    summary: str
-    steps: list[str]
-    materials: list[DraftLine]
+    description: str
+    skill_level: Difficulty | None
+    image_url: str | None
+    materials: list[DraftMaterial]
+    estimated_total: Price = Field(description="Sum of line totals over the priced lines only; unpriced lines add nothing.")
+    currency: Currency
+    priced_count: int
+    unpriced_count: int
     created_at: datetime
 
 

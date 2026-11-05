@@ -64,8 +64,34 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create Recommendation */
+        /**
+         * Create Recommendation
+         * @description Draft a project from an idea: the LLM lists the materials, prices come only from the cache.
+         *
+         *     Lines with no cache match are returned unpriced (null prices) and left out of the total. The
+         *     draft is kept in memory (lost on restart) and is never listed by GET /projects.
+         */
         post: operations["createRecommendation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recommendations/{recommendation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Recommendation
+         * @description A draft by id (memory only: an API restart forgets it).
+         */
+        get: operations["getRecommendation"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -374,10 +400,10 @@ export interface components {
             env: "sandbox" | "live";
         };
         /**
-         * DraftLine
-         * @description A material or tool as a contributor describes it: no prices yet (Channel3 fills them in).
+         * DraftMaterial
+         * @description A drafted line. Priced only when it matched the Channel3 price cache; otherwise every price field is null.
          */
-        DraftLine: {
+        DraftMaterial: {
             /** Name */
             name: string;
             /** Qty */
@@ -389,6 +415,22 @@ export interface components {
              * @enum {string}
              */
             category: "tool" | "material";
+            /** Priced */
+            priced: boolean;
+            /** Unitprice */
+            unitPrice: string | null;
+            /** Linetotal */
+            lineTotal: string | null;
+            /** Currency */
+            currency: string | null;
+            /** Retailer */
+            retailer: string | null;
+            /** Producturl */
+            productUrl: string | null;
+            /** Imageurl */
+            imageUrl: string | null;
+            /** Channel3Productid */
+            channel3ProductId: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -653,7 +695,10 @@ export interface components {
              */
             currency: string;
         };
-        /** Recommendation */
+        /**
+         * Recommendation
+         * @description A draft project. Held in API memory only; never listed by GET /projects.
+         */
         Recommendation: {
             /** Id */
             id: string;
@@ -666,28 +711,55 @@ export interface components {
             slug: string;
             /** Title */
             title: string;
-            /** Summary */
-            summary: string;
-            /** Steps */
-            steps: string[];
+            /** Description */
+            description: string;
+            /** Skilllevel */
+            skillLevel: ("beginner" | "intermediate" | "advanced") | null;
+            /** Imageurl */
+            imageUrl: string | null;
             /** Materials */
-            materials: components["schemas"]["DraftLine"][];
+            materials: components["schemas"]["DraftMaterial"][];
+            /**
+             * Estimatedtotal
+             * @description Sum of line totals over the priced lines only; unpriced lines add nothing.
+             * @example 24.99
+             */
+            estimatedTotal: string;
+            /**
+             * Currency
+             * @description ISO 4217 code.
+             * @example USD
+             */
+            currency: string;
+            /** Pricedcount */
+            pricedCount: number;
+            /** Unpricedcount */
+            unpricedCount: number;
             /**
              * Createdat
              * Format: date-time
              */
             createdAt: string;
         };
-        /** RecommendationRequest */
+        /**
+         * RecommendationRequest
+         * @description An idea. The server asks the LLM to draft the materials list from it.
+         */
         RecommendationRequest: {
             /** Title */
             title: string;
-            /** Summary */
-            summary: string;
-            /** Steps */
-            steps?: string[];
-            /** Materials */
-            materials: components["schemas"]["DraftLine"][];
+            /** Description */
+            description: string;
+            /**
+             * Skilllevel
+             * @description The builder's skill level, if known.
+             */
+            skillLevel?: ("beginner" | "intermediate" | "advanced") | null;
+            /**
+             * Imageurl
+             * @description Optional reference photo (http/https).
+             */
+            imageUrl?: string | null;
         };
         /** Swap */
         Swap: {
@@ -848,6 +920,58 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Recommendation"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description The drafting model failed or returned nothing usable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No LLM key is configured on the server */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getRecommendation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                recommendation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recommendation"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
