@@ -32,7 +32,7 @@ jobs:
       - name: Skip after judging
         id: window
         run: |
-          if [ "$(date -u +%Y%m%d)" -gt 20261216 ]; then
+          if [ "$(date -u +%Y%m%d)" -gt 20261215 ]; then
             echo "Judging is over, skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
