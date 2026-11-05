@@ -22,6 +22,7 @@ Env: LLM_API_KEY (Anthropic key), LLM_MODEL (default below), LLM_TIMEOUT_SECONDS
 import json
 import logging
 import os
+import re
 import time
 from decimal import Decimal
 from typing import Any
@@ -116,6 +117,37 @@ def _timeout_seconds() -> float:
         return float(os.environ.get("LLM_TIMEOUT_SECONDS", DEFAULT_TIMEOUT_SECONDS))
     except ValueError:
         return DEFAULT_TIMEOUT_SECONDS
+
+
+_KEYLIKE = re.compile(r"sk-[A-Za-z0-9_\-]{6,}")
+MAX_ERROR_LOG_CHARS = 300
+
+
+def llm_status(exc: BaseException) -> int | None:
+    """The provider's HTTP status for an SDK APIStatusError (400, 401, 429, ...), else None."""
+    status = getattr(exc, "status_code", None)
+    return status if isinstance(status, int) else None
+
+
+def describe_llm_error(exc: BaseException) -> str:
+    """One log-safe line naming what the provider said, e.g. 'BadRequestError 400: <message>'.
+
+    For server logs only, never a response body. Anthropic's error message is the only way to tell
+    a bad model id, a rejected parameter or an empty credit balance apart; key-like tokens are
+    redacted and the text is truncated.
+    """
+    message = ""
+    body = getattr(exc, "body", None)
+    if isinstance(body, dict):
+        error = body.get("error")
+        if isinstance(error, dict) and isinstance(error.get("message"), str):
+            message = error["message"]
+    if not message:
+        message = str(getattr(exc, "message", "") or exc)
+    message = _KEYLIKE.sub("sk-***", " ".join(message.split()))[:MAX_ERROR_LOG_CHARS]
+    status = llm_status(exc)
+    head = type(exc).__name__ + (f" {status}" if status is not None else "")
+    return f"{head}: {message}" if message else head
 
 
 def _alternatives(line: MaterialLine) -> list[dict[str, Any]]:
@@ -249,7 +281,7 @@ def build_agent_cart(project: Project, owned: list[str], budget: str | None) -> 
             return baseline
         cart = build_cart_with_swaps(project, owned, budget, choices)
     except Exception as exc:  # any SDK, network, timeout or protocol failure falls back
-        log.warning("agent failed (%s); using the deterministic cart", type(exc).__name__)
+        log.warning("agent failed (%s); using the deterministic cart", describe_llm_error(exc))
         return baseline
 
     if not cart.within_budget:

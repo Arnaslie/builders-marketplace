@@ -99,7 +99,14 @@ def draft_lines(request: RecommendationRequest) -> list[DraftLine]:
             (b.input for b in response.content if b.type == "tool_use" and b.name == "submit_materials"), None
         )
     except Exception as exc:  # any SDK, network, timeout or shape failure
-        log.warning("draft failed (%s)", type(exc).__name__)
+        log.warning("draft failed (%s)", agent.describe_llm_error(exc))
+        status = agent.llm_status(exc)
+        if status is not None and 400 <= status < 500 and status not in (408, 429):
+            # The provider answered and refused this request (bad parameter, model id, key or
+            # billing): retrying will not help, so say so instead of "did not respond".
+            raise DraftError(
+                502, f"The drafting model rejected the request (provider HTTP {status}); check the API logs"
+            ) from None
         raise DraftError(502, "The drafting model did not respond; try again in a moment") from None
 
     items = raw.get("materials") if isinstance(raw, dict) else None
