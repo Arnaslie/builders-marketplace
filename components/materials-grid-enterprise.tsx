@@ -69,7 +69,9 @@ export function EnterpriseMaterialsGrid({ lines, currency, licenseKey }: Materia
   const columnDefs = useMemo<ColDef<Row>[]>(
     () => [
       { colId: "image", headerName: "", width: 72, sortable: false, resizable: false, cellRenderer: ImageCell },
-      { field: "name", headerName: "Item", flex: 2, minWidth: 220, wrapText: true, autoHeight: true },
+      // minWidth is lower than the Community grid's 220: the extra Group column would otherwise
+      // push the row past the page width and clip Line total.
+      { field: "name", headerName: "Item", flex: 2, minWidth: 170, wrapText: true, autoHeight: true },
       // The grouping column. Hidden, because the group column on the left already shows it.
       { field: "category", headerName: "Category", rowGroup: true, hide: true, valueFormatter: (p) => groupLabel(p.value) },
       {
@@ -115,7 +117,7 @@ export function EnterpriseMaterialsGrid({ lines, currency, licenseKey }: Materia
     [currency],
   );
 
-  const autoGroupColumnDef = useMemo<ColDef<Row>>(() => ({ headerName: "Group", minWidth: 170 }), []);
+  const autoGroupColumnDef = useMemo<ColDef<Row>>(() => ({ headerName: "Group", width: 130 }), []);
 
   const onCellValueChanged = (event: CellValueChangedEvent<Row>) => {
     const updated = event.data;
