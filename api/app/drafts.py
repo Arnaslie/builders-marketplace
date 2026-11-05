@@ -92,7 +92,8 @@ def draft_lines(request: RecommendationRequest) -> list[DraftLine]:
             max_tokens=MAX_TOKENS,
             system=SYSTEM,
             tools=[SUBMIT_TOOL],
-            tool_choice={"type": "tool", "name": "submit_materials"},
+            # No forced tool_choice: some models (e.g. with thinking on) reject type "tool"/"any"
+            # with a 400. SYSTEM asks for submit_materials, and a reply without it is a 502 below.
             messages=[{"role": "user", "content": _brief(request)}],
         )
         raw = next(
