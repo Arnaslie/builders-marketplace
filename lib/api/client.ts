@@ -19,6 +19,7 @@ export type Cart = components["schemas"]["Cart"];
 export type CartLine = components["schemas"]["CartLine"];
 export type CartRequest = components["schemas"]["CartRequest"];
 export type SwapPick = components["schemas"]["SwapPick"];
+export type Swap = components["schemas"]["Swap"];
 export type CheckoutConfig = components["schemas"]["CheckoutConfig"];
 export type Order = components["schemas"]["Order"];
 export type PayPalOrder = components["schemas"]["PayPalOrder"];
