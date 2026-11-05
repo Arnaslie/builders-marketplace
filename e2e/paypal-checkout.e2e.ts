@@ -5,6 +5,8 @@
 //      method, choose to pay in full (not installments), and approve.
 //   3. The app captures the order and lands on /checkout/success?order=<PayPal order id>.
 //   4. Read the stored order back from the API and check it is paid and has a capture id.
+//   5. Check the captured total equals the cart subtotal the API quoted before checkout, and
+//      print one E2E_EVIDENCE line (order id, capture id, amount) for the run log.
 //
 // Docs this file follows:
 //   Popups:  https://playwright.dev/docs/pages#handling-popups
@@ -30,6 +32,9 @@ const PRIMARY = /^(next|continue|continue to review|review order|complete purcha
 // Installment / credit options the buyer must NOT pick: the test expects one full capture.
 const INSTALLMENTS = /pay in \d|pay later|pay monthly|installment|paypal credit/i;
 
+// Money arrives as "123.45" strings; compare in integer cents so float rounding cannot hide a gap.
+const cents = (value: string) => Math.round(Number(value) * 100);
+
 async function radioLabel(radio: Locator): Promise<string> {
   return radio.evaluate((el) => {
     const input = el as HTMLInputElement;
@@ -40,10 +45,17 @@ async function radioLabel(radio: Locator): Promise<string> {
 
 // Review page: choose to pay in full, and make sure a non-installment funding source is selected.
 // Both are optional because PayPal only shows them for some sandbox accounts and amounts.
+// PayPal renders the schedule ("Pay in full $X today" / "Pay in 4" / "Pay Monthly") as checkboxes
+// that behave like a radio group, and has used real radios before, so accept either role.
 async function choosePayInFull(popup: Page) {
-  const payInFull = popup.getByRole("radio", { name: /pay in full|full amount/i }).or(popup.getByLabel(/pay in full/i));
-  if (await payInFull.first().isVisible().catch(() => false)) {
-    await payInFull.first().check();
+  const payInFull = popup
+    .getByRole("checkbox", { name: /pay in full|full amount/i })
+    .or(popup.getByRole("radio", { name: /pay in full|full amount/i }))
+    .first();
+  if (await payInFull.isVisible().catch(() => false)) {
+    if (!(await payInFull.isChecked())) await payInFull.check();
+    await expect(payInFull, "buyer must pay in full, not in installments").toBeChecked();
+    return;
   }
 
   const radios = await popup.getByRole("radio").all();
@@ -88,9 +100,16 @@ async function approveInPopup(popup: Page) {
   // After login PayPal can show one or more pages: payment method, pay in full vs installments,
   // then the final confirm. Work through them until the popup closes (the buyer approved).
   for (let pageNo = 1; pageNo <= 4 && !popup.isClosed(); pageNo++) {
-    await test.step(`PayPal review page ${pageNo}: payment method, pay in full, confirm`, async () => {
+    const approved = await test.step(`PayPal review page ${pageNo}: payment method, pay in full, confirm`, async () => {
       const primary = popup.getByRole("button", { name: PRIMARY }).or(popup.locator("#payment-submit-btn")).first();
-      await expect(primary).toBeVisible({ timeout: 60_000 });
+      try {
+        await primary.waitFor({ state: "visible", timeout: 60_000 });
+      } catch (err) {
+        // The previous click approved the payment and PayPal closed the popup while we looked
+        // for another page. That is success, not a failure.
+        if (popup.isClosed()) return true;
+        throw err;
+      }
       await choosePayInFull(popup);
       await primary.click();
       // Either the popup closes (approved) or this page's button goes away (next page loaded).
@@ -98,7 +117,9 @@ async function approveInPopup(popup: Page) {
         popup.waitForEvent("close", { timeout: 60_000 }),
         primary.waitFor({ state: "detached", timeout: 60_000 }),
       ]).catch(() => {});
+      return popup.isClosed();
     });
+    if (approved) break;
   }
   expect(popup.isClosed(), "PayPal popup should close once the buyer approves").toBe(true);
 }
@@ -111,6 +132,14 @@ test("sandbox buyer pays for a cart and the order is stored as paid", async ({ p
 
   const config = await (await request.get(`${API_URL}/checkout/config`)).json();
   expect(config.env, "this test must never run against live PayPal").toBe("sandbox");
+
+  // Price the same cart the page prices (project, nothing owned, default swaps), so the stored
+  // order can be checked against a subtotal the browser never touched.
+  const project = await (await request.get(`${API_URL}/projects/${encodeURIComponent(PROJECT)}`)).json();
+  const quoteRes = await request.post(`${API_URL}/cart`, { data: { projectId: project.id, owned: [] } });
+  expect(quoteRes.status()).toBe(200);
+  const quote = await quoteRes.json();
+  expect(quote.lines.length, "cart must have something to pay for").toBeGreaterThan(0);
 
   await page.goto(`/cart?project=${encodeURIComponent(PROJECT)}`);
   await expect(page.getByRole("heading", { name: "Cart", level: 1 })).toBeVisible();
@@ -137,4 +166,23 @@ test("sandbox buyer pays for a cart and the order is stored as paid", async ({ p
   expect(order.paypalOrderId).toBe(orderId);
   expect(order.paypalCaptureId).toBeTruthy();
   expect(order.lines.length).toBeGreaterThan(0);
+
+  // The API marks an order "paid" only when PayPal reports the capture COMPLETED, and the PayPal
+  // amount is the server's cart subtotal, so these three must agree to the cent.
+  const lineSum = order.lines.reduce((sum: number, line: { lineTotal: string }) => sum + cents(line.lineTotal), 0);
+  expect(order.currency).toBe(quote.currency);
+  expect(cents(order.total), "captured total must equal the cart subtotal").toBe(cents(quote.subtotal));
+  expect(lineSum, "order lines must sum to the captured total").toBe(cents(order.total));
+
+  const evidence = {
+    paypalOrderId: order.paypalOrderId,
+    captureId: order.paypalCaptureId,
+    status: order.status,
+    total: order.total,
+    currency: order.currency,
+    cartSubtotal: quote.subtotal,
+    lines: order.lines.length,
+  };
+  test.info().annotations.push({ type: "evidence", description: JSON.stringify(evidence) });
+  console.log(`E2E_EVIDENCE ${JSON.stringify(evidence)}`);
 });
