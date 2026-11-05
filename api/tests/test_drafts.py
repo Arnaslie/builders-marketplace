@@ -83,6 +83,25 @@ def test_wrong_currency_cache_entry_is_not_used(api: TestClient, monkeypatch) ->
     assert rec["estimatedTotal"] == "0.00"
 
 
+@pytest.mark.parametrize(
+    "name",
+    ["2x4 pine furring strip, 8 ft", "2x2 pine furring strip 10 ft", "2 in x 4 in x 8 ft pine furring strip"],
+)
+def test_different_size_is_not_priced_from_the_cached_size(api: TestClient, monkeypatch, name: str) -> None:
+    use_llm(monkeypatch, submit_materials({**PINE, "name": name}))
+    rec = api.post("/recommendations", json=IDEA).json()
+    assert rec["materials"][0]["priced"] is False
+    assert rec["materials"][0]["unitPrice"] is None
+    assert rec["estimatedTotal"] == "0.00"
+
+
+def test_same_size_written_differently_still_matches(api: TestClient, monkeypatch) -> None:
+    use_llm(monkeypatch, submit_materials({**PINE, "name": "2x2 pine furring strip, 8 ft"}))
+    rec = api.post("/recommendations", json=IDEA).json()
+    assert rec["materials"][0]["priced"] is True
+    assert rec["materials"][0]["unitPrice"] == "3.47"
+
+
 def test_no_cache_means_everything_unpriced(monkeypatch) -> None:
     use_llm(monkeypatch, submit_materials(PINE))
     api = TestClient(create_app(cors_origins=["http://localhost:3000"]))  # conftest sets CONTRACT_PRICES_PATH=""

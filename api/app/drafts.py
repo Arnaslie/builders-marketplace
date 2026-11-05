@@ -149,6 +149,10 @@ def _tokens(text: str) -> frozenset[str]:
     return frozenset(w for w in re.findall(r"[a-z0-9]+", spaced) if w not in _WORDS_IGNORED)
 
 
+def _numbers(tokens: frozenset[str]) -> frozenset[str]:
+    return frozenset(t for t in tokens if t.isdigit())
+
+
 @dataclass(frozen=True)
 class Candidate:
     names: tuple[frozenset[str], ...]
@@ -171,9 +175,12 @@ def match_price(name: str, pool: list[Candidate]) -> PriceEntry | None:
     want = _tokens(name)
     if not want:
         return None
+    want_numbers = _numbers(want)
     best: tuple[float, PriceEntry] | None = None
     for cand in pool:
         for have in cand.names:
+            if _numbers(have) != want_numbers:  # a different size/length is a different product
+                continue
             score = len(want & have) / len(want | have) if have else 0.0
             if score >= MATCH_THRESHOLD and (best is None or score > best[0]):
                 best = (score, cand.entry)
