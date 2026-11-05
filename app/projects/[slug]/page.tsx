@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { AgentPanel } from "../../../components/agent-panel";
 import { MaterialsGrid } from "../../../components/materials-grid";
 import { ProjectImage } from "../../../components/project-image";
+import { agGridLicenseKey } from "../../../lib/ag-grid-license";
 import { getProject } from "../../../lib/api/client";
 import { isMockProject } from "../../../lib/mock/ids";
 
@@ -40,7 +41,8 @@ export default async function ProjectPage({ params }: Props) {
       <hr />
 
       <h2>Materials and Tools</h2>
-      <MaterialsGrid lines={project.materials} currency={project.currency} />
+      {/* The licence key is read here, at request time, so a change on Render needs no rebuild. */}
+      <MaterialsGrid lines={project.materials} currency={project.currency} licenseKey={agGridLicenseKey()} />
 
       <h2>Shopping Agent</h2>
       <AgentPanel projectId={project.id} slug={project.slug} lines={project.materials} currency={project.currency} />
