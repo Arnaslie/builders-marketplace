@@ -157,3 +157,32 @@ def test_draft_is_excluded_from_projects_but_readable_by_id(api: TestClient, mon
     assert api.get(f"/projects/{rec['slug']}").status_code == 404
     assert api.get(f"/recommendations/{rec['id']}").json() == rec
     assert api.get("/recommendations/rec_nope").status_code == 404
+
+
+def _provider_400(message: str):
+    """A real SDK BadRequestError, shaped the way anthropic raises it for an HTTP 400."""
+    import anthropic
+    import httpx
+
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+    body = {"type": "error", "error": {"type": "invalid_request_error", "message": message}}
+    return anthropic.BadRequestError(message, response=httpx.Response(400, request=request), body=body)
+
+
+def test_provider_rejection_is_logged_with_its_reason_and_not_called_a_timeout(api: TestClient, monkeypatch, caplog) -> None:
+    use_llm(monkeypatch, _provider_400("tool_choice is not supported with sk-ant-abc123secret"))
+    with caplog.at_level("WARNING", logger="uvicorn.error"):
+        r = api.post("/recommendations", json=IDEA)
+    assert r.status_code == 502
+    assert "rejected" in r.json()["detail"] and "HTTP 400" in r.json()["detail"]
+    assert "tool_choice" not in r.text  # the provider's wording stays in the server log
+    logged = caplog.text
+    assert "BadRequestError 400: tool_choice is not supported" in logged
+    assert "abc123secret" not in logged and "sk-***" in logged
+
+
+def test_describe_llm_error_falls_back_to_the_exception_text() -> None:
+    assert agent.describe_llm_error(TimeoutError("agent exceeded LLM_TIMEOUT_SECONDS")) == (
+        "TimeoutError: agent exceeded LLM_TIMEOUT_SECONDS"
+    )
+    assert agent.llm_status(RuntimeError("x")) is None
