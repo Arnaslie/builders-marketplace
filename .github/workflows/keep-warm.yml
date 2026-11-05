@@ -1,0 +1,47 @@
+# Keep-warm: pings both Render free services so judges don't hit a ~1 min cold start.
+# Render spins a free service down after 15 idle minutes, so we ping every 10 (GitHub cron can run late).
+# Window is 13:00-23:59 UTC only: two services awake 24/7 would burn ~1440 h/month against
+# Render's 750 free instance hours per workspace (https://render.com/docs/free).
+# 11 h/day x 2 services x 30 days = ~660 h, leaving headroom for real traffic outside the window.
+name: Keep warm
+
+on:
+  schedule:
+    - cron: "*/10 13-23 * * *" # UTC
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    name: ping ${{ matrix.url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        url:
+          - https://diy-wikipedia.onrender.com/healthz # web (app/healthz/route.ts)
+          - https://diy-wikipedia-api.onrender.com/healthz # api (api/app/main.py)
+    steps:
+      # Stop spending free hours once judging is over; delete this workflow after that.
+      - name: Skip after judging
+        id: window
+        run: |
+          if [ "$(date -u +%Y%m%d)" -gt 20261216 ]; then
+            echo "Judging is over, skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A cold start can take ~1 min, so allow a long timeout and retry the 502 Render returns while waking.
+      - name: Ping
+        if: steps.window.outputs.skip != 'true'
+        run: >
+          curl --fail --silent --show-error --max-time 90
+          --retry 3 --retry-delay 10 --retry-all-errors
+          -o /dev/null -w "%{http_code} in %{time_total}s\n"
+          "${{ matrix.url }}"
