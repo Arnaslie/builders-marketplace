@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   arrangeGroups,
+  compareGroupKeys,
+  groupLabel,
   groupSummaryRows,
   lineCents,
   subtotalsByCategory,
@@ -98,5 +100,24 @@ describe("group rows", () => {
       "screws",
       "subtotal:material",
     ]);
+  });
+});
+
+describe("compareGroupKeys (Enterprise group order)", () => {
+  it("puts tools before materials", () => {
+    expect(["material", "tool"].sort(compareGroupKeys)).toEqual(["tool", "material"]);
+  });
+
+  it("puts an unknown or missing key last", () => {
+    expect(["other", "material", null, "tool"].sort(compareGroupKeys)).toEqual(["tool", "material", "other", null]);
+  });
+});
+
+describe("groupLabel", () => {
+  it("labels the known groups and passes others through", () => {
+    expect(groupLabel("tool")).toBe("Tools");
+    expect(groupLabel("material")).toBe("Materials");
+    expect(groupLabel("other")).toBe("other");
+    expect(groupLabel(null)).toBe("");
   });
 });

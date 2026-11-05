@@ -15,11 +15,16 @@
 //   Row styles (getRowStyle):  https://www.ag-grid.com/react-data-grid/row-styles/
 //   Row grouping (Enterprise): https://www.ag-grid.com/react-data-grid/grouping/
 //
-// Tools-vs-materials grouping: real row grouping is Enterprise, so this is the Community
-// fallback. The grid is a flat list holding the lines plus a header row and a subtotal row per
-// group (lib/grid-totals.ts builds them); postSortRows puts them back in tools-then-materials
-// order after every sort, so columns sort within each group. No ag-grid-enterprise import.
+// Two grids sit behind MaterialsGrid:
+//   - With an AG Grid licence key (AG_GRID_LICENSE_KEY, passed in by the page) it lazy-loads
+//     components/materials-grid-enterprise.tsx, which uses real Enterprise row grouping.
+//   - Without one it renders CommunityMaterialsGrid below. Real row grouping is Enterprise, so
+//     this is the fallback: a flat list holding the lines plus a header row and a subtotal row
+//     per group (lib/grid-totals.ts builds them); postSortRows puts them back in
+//     tools-then-materials order after every sort, so columns sort within each group.
+// This file never imports ag-grid-enterprise, so a keyless deploy never downloads it.
 import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { AgGridReact } from "ag-grid-react";
 import {
   AllCommunityModule,
@@ -68,7 +73,7 @@ export const theme = themeQuartz.withParams({
 // One grid row. kind "line" is a real material line (`owned` starts from the API's ownedDefault;
 // qty and owned are user-editable). The other kinds are synthetic: a group header, a group
 // subtotal, and the pinned total. Synthetic rows carry blank fields and a precomputed `cents`.
-type Row = {
+export type Row = {
   id: string;
   kind: "line" | "header" | "subtotal" | "total";
   group?: MaterialLine["category"]; // which group the row sits in (not set on the total)
@@ -84,7 +89,7 @@ type Row = {
   cents?: number; // synthetic rows only
 };
 
-const toRow = (line: MaterialLine): Row => ({
+export const toRow = (line: MaterialLine): Row => ({
   id: line.id,
   kind: "line",
   group: line.category,
@@ -136,7 +141,8 @@ function getRowStyle({ data }: RowClassParams<Row>): RowStyle | undefined {
 // imageUrl comes from the Channel3 price cache (contract/prices.json) when a line is priced, and
 // is null for unpriced fixture lines. A URL that fails to load (moved, hotlink-blocked) falls
 // back to the same letter tile as a missing one, never a broken-image icon.
-function ImageCell({ data }: ICellRendererParams<Row>) {
+// Both cells render nothing on any non-line row, including Enterprise group rows (no data).
+export function ImageCell({ data }: ICellRendererParams<Row>) {
   const [failed, setFailed] = useState(false);
   if (!data || data.kind !== "line") return null;
   if (data.imageUrl && /^https?:\/\//i.test(data.imageUrl) && !failed) {
@@ -161,7 +167,7 @@ function ImageCell({ data }: ICellRendererParams<Row>) {
   );
 }
 
-function RetailerCell({ data }: ICellRendererParams<Row>) {
+export function RetailerCell({ data }: ICellRendererParams<Row>) {
   if (!data || data.kind !== "line") return null;
   // Only link http(s) URLs; anything else (javascript:, data:) is shown as plain text.
   if (!/^https?:\/\//i.test(data.productUrl)) return <span>{data.retailer}</span>;
@@ -173,11 +179,23 @@ function RetailerCell({ data }: ICellRendererParams<Row>) {
 }
 
 // Stands in for the "owned" checkbox on header, subtotal and total rows.
-function EmptyCell() {
+export function EmptyCell() {
   return null;
 }
 
-export function MaterialsGrid({ lines, currency }: { lines: MaterialLine[]; currency: string }) {
+export type MaterialsGridProps = { lines: MaterialLine[]; currency: string };
+
+// Loaded only when a licence key is present. No loading placeholder: the chunk is small next to
+// the page and a flash of the Community grid would show the wrong layout.
+const EnterpriseMaterialsGrid = dynamic(() =>
+  import("./materials-grid-enterprise").then((m) => m.EnterpriseMaterialsGrid),
+);
+
+export function MaterialsGrid({ licenseKey, ...props }: MaterialsGridProps & { licenseKey?: string }) {
+  return licenseKey ? <EnterpriseMaterialsGrid {...props} licenseKey={licenseKey} /> : <CommunityMaterialsGrid {...props} />;
+}
+
+export function CommunityMaterialsGrid({ lines, currency }: MaterialsGridProps) {
   // Only the real lines are state; the summary rows are derived from them below.
   const [rows, setRows] = useState<Row[]>(() => lines.map(toRow));
 
