@@ -31,8 +31,10 @@ import {
   EmptyCell,
   ImageCell,
   BuyCell,
+  SWAP_HIGHLIGHT,
   theme,
   toRow,
+  withHighlights,
   type MaterialsGridProps,
   type Row,
 } from "./materials-grid";
@@ -59,12 +61,20 @@ function getRowStyle({ node }: RowClassParams<Row>): RowStyle | undefined {
   if (node.footer && node.level === -1) return { background: "#c0c0c0", fontWeight: 700, borderTop: "2px solid #000000" };
   if (node.footer) return { fontWeight: 700 };
   if (node.group) return { background: "#c0c0c0", fontWeight: 700 };
+  if (node.data?.swapped) return { background: SWAP_HIGHLIGHT };
   return undefined;
 }
 
-export function EnterpriseMaterialsGrid({ lines, currency, licenseKey }: MaterialsGridProps & { licenseKey: string }) {
+export function EnterpriseMaterialsGrid({
+  lines,
+  currency,
+  licenseKey,
+  onOwnedChange,
+  highlightIds,
+}: MaterialsGridProps & { licenseKey: string }) {
   applyLicense(licenseKey);
   const [rows, setRows] = useState<Row[]>(() => lines.map(toRow));
+  const displayRows = useMemo(() => withHighlights(rows, highlightIds), [rows, highlightIds]);
 
   const columnDefs = useMemo<ColDef<Row>[]>(
     () => [
@@ -122,6 +132,7 @@ export function EnterpriseMaterialsGrid({ lines, currency, licenseKey }: Materia
   const onCellValueChanged = (event: CellValueChangedEvent<Row>) => {
     const updated = event.data;
     setRows((current) => current.map((row) => (row.id === updated.id ? { ...updated } : row)));
+    if (event.colDef.field === "owned") onOwnedChange?.(updated.id, updated.owned);
   };
 
   const totalCents = sumCents(rows);
@@ -132,7 +143,7 @@ export function EnterpriseMaterialsGrid({ lines, currency, licenseKey }: Materia
       <div className="grid-wrap">
         <AgGridReact<Row>
           theme={theme}
-          rowData={rows}
+          rowData={displayRows}
           columnDefs={columnDefs}
           defaultColDef={{ sortable: true, resizable: true }}
           autoGroupColumnDef={autoGroupColumnDef}

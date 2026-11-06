@@ -86,8 +86,12 @@ export type Row = {
   productUrl: string;
   imageUrl: string | null;
   owned: boolean;
+  swapped?: boolean; // the shopping agent swapped this line: the row is highlighted
   cents?: number; // synthetic rows only
 };
+
+// Row colour for a line the agent swapped (a plain yellow highlighter on the 1994 page).
+export const SWAP_HIGHLIGHT = "#ffff99";
 
 export const toRow = (line: MaterialLine): Row => ({
   id: line.id,
@@ -134,6 +138,7 @@ function getRowStyle({ data }: RowClassParams<Row>): RowStyle | undefined {
   if (data?.kind === "header") return { background: "#c0c0c0", fontWeight: 700 };
   if (data?.kind === "subtotal") return { fontWeight: 700 };
   if (data?.kind === "total") return { background: "#c0c0c0", fontWeight: 700, borderTop: "2px solid #000000" };
+  if (data?.kind === "line" && data.swapped) return { background: SWAP_HIGHLIGHT };
   return undefined;
 }
 
@@ -184,7 +189,18 @@ export function EmptyCell() {
   return null;
 }
 
-export type MaterialsGridProps = { lines: MaterialLine[]; currency: string };
+// onOwnedChange reports the "Already own it" toggle so the agent panel sends the same owned[];
+// highlightIds are the lines the agent swapped.
+export type MaterialsGridProps = {
+  lines: MaterialLine[];
+  currency: string;
+  onOwnedChange?: (lineId: string, owned: boolean) => void;
+  highlightIds?: ReadonlySet<string>;
+};
+
+// Marks the swapped lines on a copy; the grid's own state never holds the highlight.
+export const withHighlights = (rows: Row[], ids?: ReadonlySet<string>): Row[] =>
+  rows.map((row) => ({ ...row, swapped: row.kind === "line" && (ids?.has(row.id) ?? false) }));
 
 // Loaded only when a licence key is present. No loading placeholder: the chunk is small next to
 // the page and a flash of the Community grid would show the wrong layout.
@@ -196,7 +212,7 @@ export function MaterialsGrid({ licenseKey, ...props }: MaterialsGridProps & { l
   return licenseKey ? <EnterpriseMaterialsGrid {...props} licenseKey={licenseKey} /> : <CommunityMaterialsGrid {...props} />;
 }
 
-export function CommunityMaterialsGrid({ lines, currency }: MaterialsGridProps) {
+export function CommunityMaterialsGrid({ lines, currency, onOwnedChange, highlightIds }: MaterialsGridProps) {
   // Only the real lines are state; the summary rows are derived from them below.
   const [rows, setRows] = useState<Row[]>(() => lines.map(toRow));
 
@@ -264,6 +280,7 @@ export function CommunityMaterialsGrid({ lines, currency }: MaterialsGridProps) 
   const onCellValueChanged = (event: CellValueChangedEvent<Row>) => {
     const updated = event.data;
     setRows((current) => current.map((row) => (row.id === updated.id ? { ...updated } : row)));
+    if (event.colDef.field === "owned" && updated.kind === "line") onOwnedChange?.(updated.id, updated.owned);
   };
 
   const totalCents = sumCents(rows);
@@ -273,8 +290,12 @@ export function CommunityMaterialsGrid({ lines, currency }: MaterialsGridProps) 
   // keeps that order through sorts via postSortRows). Rebuilt on every qty edit or owned toggle.
   const gridRows = useMemo(
     () =>
-      arrangeGroups([...rows, ...groupSummaryRows(rows).map(toSummaryRow)], (r) => r.group, rowKind),
-    [rows],
+      arrangeGroups(
+        [...withHighlights(rows, highlightIds), ...groupSummaryRows(rows).map(toSummaryRow)],
+        (r) => r.group,
+        rowKind,
+      ),
+    [rows, highlightIds],
   );
   const pinnedBottomRows = useMemo(() => [toSummaryRow(totalRow(totalCents))], [totalCents]);
 
