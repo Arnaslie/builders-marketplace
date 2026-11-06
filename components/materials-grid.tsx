@@ -167,13 +167,14 @@ export function ImageCell({ data }: ICellRendererParams<Row>) {
   );
 }
 
-export function RetailerCell({ data }: ICellRendererParams<Row>) {
+// The "buy link" column: a real link on lines, nothing on group/total rows.
+export function BuyCell({ data }: ICellRendererParams<Row>) {
   if (!data || data.kind !== "line") return null;
-  // Only link http(s) URLs; anything else (javascript:, data:) is shown as plain text.
-  if (!/^https?:\/\//i.test(data.productUrl)) return <span>{data.retailer}</span>;
+  // Only link http(s) URLs; anything else (javascript:, data:) gets no link.
+  if (!/^https?:\/\//i.test(data.productUrl)) return null;
   return (
-    <a href={data.productUrl} target="_blank" rel="noopener noreferrer">
-      {data.retailer}
+    <a href={data.productUrl} target="_blank" rel="noopener noreferrer" aria-label={`Buy ${data.name} at ${data.retailer}`}>
+      Buy
     </a>
   );
 }
@@ -230,7 +231,8 @@ export function CommunityMaterialsGrid({ lines, currency }: MaterialsGridProps) 
         width: 110,
         valueFormatter: (p: ValueFormatterParams<Row, string>) => (p.value ? formatMoney(p.value, currency) : ""),
       },
-      { field: "retailer", headerName: "Retailer", width: 160, cellRenderer: RetailerCell },
+      { field: "retailer", headerName: "Retailer", width: 140 },
+      { colId: "buy", headerName: "Buy link", width: 90, sortable: false, resizable: false, cellRenderer: BuyCell },
       // cellDataType "boolean" gives a checkbox; editable lets a click toggle it. Synthetic rows
       // get an empty cell instead of a checkbox.
       {
