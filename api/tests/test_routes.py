@@ -48,37 +48,6 @@ def test_get_project_404(client: TestClient) -> None:
     assert client.get("/projects/no-such-project").status_code == 404
 
 
-def test_create_recommendation_is_draft(client: TestClient) -> None:
-    r = client.post(
-        "/recommendations",
-        json={
-            "title": "Cedar Planter Box",
-            "summary": "Raised planter from cedar fence pickets.",
-            "materials": [{"name": "Cedar fence picket", "qty": 8, "unit": "board", "category": "material"}],
-        },
-    )
-    assert r.status_code == 201
-    rec = r.json()
-    assert rec["status"] == "draft"
-    assert rec["slug"] == "cedar-planter-box"
-    assert rec["id"].startswith("rec_")
-    assert rec["steps"] == []
-    assert "createdAt" in rec
-
-
-def test_create_recommendation_rejects_unknown_fields(client: TestClient) -> None:
-    r = client.post(
-        "/recommendations",
-        json={
-            "title": "Box",
-            "summary": "",
-            "materials": [{"name": "Plywood", "qty": 1, "unit": "sheet", "category": "material"}],
-            "price": "1.00",
-        },
-    )
-    assert r.status_code == 422
-
-
 def test_build_cart_route(client: TestClient) -> None:
     r = client.post(
         "/agent/build-cart",

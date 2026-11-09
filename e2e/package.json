@@ -1,0 +1,19 @@
+{
+  "name": "builders-marketplace-e2e",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "PayPal sandbox smoke test: cart -> PayPal popup -> success page -> stored order. Run manually; see e2e/README.md.",
+  "engines": {
+    "node": ">=20 <21"
+  },
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "20.19.43",
+    "typescript": "5.9.3"
+  }
+}

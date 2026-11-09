@@ -11,7 +11,7 @@ import type { components } from "./schema";
 export type Project = components["schemas"]["Project"];
 export type ProjectSummary = components["schemas"]["ProjectSummary"];
 export type MaterialLine = components["schemas"]["MaterialLine"];
-export type DraftLine = components["schemas"]["DraftLine"];
+export type DraftMaterial = components["schemas"]["DraftMaterial"];
 export type RecommendationRequest = components["schemas"]["RecommendationRequest"];
 export type Recommendation = components["schemas"]["Recommendation"];
 export type BuildCartRequest = components["schemas"]["BuildCartRequest"];
@@ -19,6 +19,7 @@ export type Cart = components["schemas"]["Cart"];
 export type CartLine = components["schemas"]["CartLine"];
 export type CartRequest = components["schemas"]["CartRequest"];
 export type SwapPick = components["schemas"]["SwapPick"];
+export type Swap = components["schemas"]["Swap"];
 export type CheckoutConfig = components["schemas"]["CheckoutConfig"];
 export type Order = components["schemas"]["Order"];
 export type PayPalOrder = components["schemas"]["PayPalOrder"];
@@ -74,20 +75,40 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
 }
 
 // Render's free plan spins the API down when idle and takes up to ~50s to wake it. In that window
-// requests hang or get 502/503/504. Worst case here: 3 x 14s + 2s + 4s = 48s.
+// requests hang or get 429/502/503/504 (429 comes from Render's proxy, not from FastAPI).
+// Worst case here: 3 x 14s + 2s + 4s = 48s.
 const ATTEMPTS = 3;
 const ATTEMPT_TIMEOUT_MS = 14_000;
 const BACKOFF_MS = [2_000, 4_000];
-const RETRYABLE = new Set([502, 503, 504]);
+const RETRYABLE = new Set([429, 502, 503, 504]);
+
+// Retry-After as milliseconds (seconds or an HTTP date), or undefined if absent/unparseable.
+function retryAfterMs(res: Response | undefined): number | undefined {
+  const value = res?.headers.get("retry-after");
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? undefined : Math.max(0, date - Date.now());
+}
 
 async function getWithRetry(url: string, init?: RequestInit): Promise<Response> {
   let lastError: unknown;
+  let lastRetryable: Response | undefined;
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
-    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, BACKOFF_MS[attempt - 1]));
+    if (attempt > 0) {
+      // Honour Retry-After, but never wait longer than this attempt's backoff slot, so the
+      // worst case above still holds.
+      const slot = BACKOFF_MS[attempt - 1];
+      const wait = Math.min(retryAfterMs(lastRetryable) ?? slot, slot);
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+    lastRetryable = undefined;
     try {
       const res = await fetch(url, { cache: "no-store", ...init, signal: AbortSignal.timeout(ATTEMPT_TIMEOUT_MS) });
       // On the last attempt hand back whatever came, so the caller sees the real status.
       if (!RETRYABLE.has(res.status) || attempt === ATTEMPTS - 1) return res;
+      lastRetryable = res;
     } catch (err) {
       lastError = err; // network error or timeout
     }
@@ -95,10 +116,10 @@ async function getWithRetry(url: string, init?: RequestInit): Promise<Response> 
   throw lastError;
 }
 
-// True for "the API is not answering" (network error, timeout, 5xx), as opposed to a real
+// True for "the API is not answering" (network error, timeout, 429, 5xx), as opposed to a real
 // answer such as 404. Read-only listings fall back to the fixtures for these.
 function isUnavailable(err: unknown): boolean {
-  return !(err instanceof ApiUnavailableStatus) || err.status >= 500;
+  return !(err instanceof ApiUnavailableStatus) || err.status === 429 || err.status >= 500;
 }
 
 class ApiUnavailableStatus extends Error {
@@ -135,29 +156,21 @@ export async function getProject(slug: string): Promise<Project | null> {
   }
 }
 
-export type RecommendationResult =
-  | { kind: "saved"; recommendation: Recommendation }
-  | { kind: "local"; draft: RecommendationRequest };
-
-// With an API: POST /recommendations. Without one: nothing is sent; the caller shows the draft.
-export async function submitRecommendation(draft: RecommendationRequest): Promise<RecommendationResult> {
-  if (!usingApi) return { kind: "local", draft };
+// POST /recommendations: the server asks the LLM to draft the materials and prices them from its
+// cache. There is no fixture fallback (nothing to draft with), so without an API this throws.
+// Errors carry the server's own message, e.g. 503 "Drafting is not configured on this server".
+export async function submitRecommendation(idea: RecommendationRequest): Promise<Recommendation> {
+  if (!usingApi) throw new Error("Drafting needs the API, and NEXT_PUBLIC_API_URL is not set.");
   const res = await apiFetch("/recommendations", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(draft),
+    body: JSON.stringify(idea),
   });
   if (!res.ok) {
-    let detail = "";
-    try {
-      const body = (await res.json()) as { detail?: unknown };
-      if (Array.isArray(body.detail) && body.detail[0]?.msg) detail = `: ${body.detail[0].msg}`;
-    } catch {
-      // Non-JSON error body; the status code is enough.
-    }
-    throw new Error(`The API rejected the draft (HTTP ${res.status})${detail}`);
+    const { status, detail } = await apiError(res);
+    throw new Error(detail ? `Could not draft this idea (HTTP ${status}): ${detail}` : `Could not draft this idea (HTTP ${status}).`);
   }
-  return { kind: "saved", recommendation: (await res.json()) as Recommendation };
+  return (await res.json()) as Recommendation;
 }
 
 // --- Cart and PayPal checkout -------------------------------------------------------------

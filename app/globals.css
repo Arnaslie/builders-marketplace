@@ -364,6 +364,26 @@ a:visited .banner {
   font-size: 0.875em;
 }
 
+/* Draft recommendation: a plain inverted label, no colour or radius (1994 look). */
+.result.draft {
+  max-width: none;
+}
+
+.badge-draft {
+  font-size: 0.5em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  vertical-align: middle;
+  background: var(--color-text);
+  color: var(--color-bg);
+}
+
+.draft-unpriced {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
 /* Shopping agent panel: a 1994 form and a plain bordered table. Checkboxes stay browser default. */
 .agent-panel {
   max-width: 46rem;

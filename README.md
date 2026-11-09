@@ -6,7 +6,7 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 
 ## Hosted demo
 
-- **Live URL:** `TODO: https://<service>.onrender.com`
+- **Live URL:** `https://diy-wikipedia.onrender.com`
 - Note: free Render instances may spin down when idle; the first request can be slow. `TODO: confirm plan`
 
 ## Features

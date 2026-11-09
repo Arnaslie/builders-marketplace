@@ -80,7 +80,7 @@ def test_dry_run_calls_nothing_and_writes_nothing(out, capsys) -> None:
     printed = capsys.readouterr().out
     # 46 lines, 40 distinct phrases (drill x3, safety glasses x3, tape measure x2, sandpaper x2).
     assert printed.startswith("46 line(s) to price, 0 already cached, 40 Channel3 call(s) (40 credit(s))")
-    assert "would search  proj-chair/chair-pine-2x2: '2x2 pine furring strip 8 ft'" in printed
+    assert "would search  proj-chair/chair-pine-2x2: '2x2x8 pine lumber board'" in printed
 
 
 def test_prices_every_flagship_line_once_per_unique_query(out) -> None:
@@ -93,7 +93,7 @@ def test_prices_every_flagship_line_once_per_unique_query(out) -> None:
     cache = PriceCache.load(out)
     entry = cache.entry("proj-chair", "chair-pine-2x2")
     assert (entry.price, entry.retailer, entry.url, entry.query) == (
-        "9.99", "homedepot.com", "https://www.homedepot.com/p", "2x2 pine furring strip 8 ft",
+        "9.99", "homedepot.com", "https://www.homedepot.com/p", "2x2x8 pine lumber board",
     )
     assert entry.image_url.startswith("https://cdn.example.com/")
     assert entry.fetched_at.tzinfo is not None
@@ -119,7 +119,7 @@ def test_rerun_spends_nothing_and_refresh_spends_again(out) -> None:
 
     refresh = FakeClient()
     assert run(out, refresh, "--refresh", "--line", "chair-drill", "--line", "knife-anvil") == 0
-    assert refresh.queries == ["20V cordless drill driver kit", "steel bench block anvil 4x4"]
+    assert refresh.queries == ["20V cordless drill driver kit", "small cast iron blacksmith anvil 10 lb"]
 
 
 def test_project_filter(out) -> None:
