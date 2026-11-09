@@ -86,7 +86,7 @@ Set the API's `CORS_ALLOW_ORIGINS` to the web service's public URL in the Render
 - [AG Grid](https://www.ag-grid.com/) for the materials grid
 - [Channel3](https://trychannel3.com/developers) product search API
 - [PayPal Orders v2](https://developer.paypal.com/) (sandbox)
-- LLM provider: `TODO`
+- LLM provider: [Anthropic Claude](https://docs.anthropic.com/) (key in `LLM_API_KEY`)
 - Hosting: [Render](https://render.com/) via `render.yaml` Blueprint
 
 ## License

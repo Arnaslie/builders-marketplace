@@ -22,9 +22,9 @@ services:
         value: https://diy-wikipedia-api.onrender.com
       # Secrets: sync:false means Render prompts for the value on first Blueprint
       # creation only; later changes are made in the dashboard (see spec).
+      # No PAYPAL_CLIENT_SECRET here: the browser gets the client id from the API's
+      # GET /checkout/config, and only the API service talks to PayPal with the secret.
       - key: PAYPAL_CLIENT_ID
-        sync: false
-      - key: PAYPAL_CLIENT_SECRET
         sync: false
       - key: CHANNEL3_API_KEY
         sync: false
