@@ -17,15 +17,49 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 - **Shopping agent**: builds the cart from the grid, skips tools you already own, swaps cheaper items within your budget.
 - **PayPal Orders v2 (sandbox)** checkout. In this demo the app acts as merchant of record; retailer fulfilment is simulated. No real money moves.
 
-## PayPal sandbox test credentials
+## Try the checkout (PayPal sandbox)
 
-Judges: log in at the PayPal checkout popup with the sandbox buyer below. Sandbox only; no real funds.
+Sandbox only: no real money moves and nothing ships.
+
+**1. Wake the API first.** The API runs on Render's free plan, which spins it down when idle and can take
+up to about 50 seconds to wake. Open https://diy-wikipedia-api.onrender.com/healthz and wait for a
+response before you start. While the API is asleep, the gallery and project pages fall back to seed
+data and still load, but building a cart and paying need the live API. If a page shows "SERVER ERROR",
+wait a few seconds and click **Try again**.
+
+**2. Build a cart with the agent.** Open any project from the gallery (for example the chair). In the
+agent panel, optionally enter a budget and tick the items under **Already own**, then click
+**Build my cart**. The agent returns the cart with any cheaper swaps and the reason for each.
+
+**3. Go to the cart.** Click **Go to the cart and pay with PayPal**. The cart page re-prices the cart on
+the server; the PayPal total always comes from the API, never from the browser.
+
+**4. Pay in the PayPal popup.** Under **Pay with PayPal**, click the PayPal button. In the popup:
+
+1. Enter the sandbox buyer email below, click **Next**, enter the password, click **Log In**.
+2. On the review page, **confirm the payment method**: keep or select the PayPal balance or card, and if
+   PayPal offers installments choose **pay in full**. This step is easy to miss; the payment is not
+   approved until you confirm it.
+3. Click the final button (**Continue**, **Complete Purchase** or **Pay Now**, depending on the page
+   PayPal shows). The popup closes.
+
+**5. Check the result.** The app captures the payment and opens `/checkout/success`, showing
+**Order received** with status `paid` and the total. The demo API keeps orders in memory, so an order
+page may show "Order not found" after the API restarts or sleeps; the payment itself is still visible
+in the sandbox buyer's PayPal activity.
 
 | Role | Email | Password |
 |------|-------|----------|
-| Sandbox buyer (personal) | `sb-udxlx53723459@personal.example.com` | `jjks32026sl` |
+| Sandbox buyer (public PayPal sandbox account, judges only, no real money) | `PASTE_JUDGE_SANDBOX_BUYER_EMAIL` | `PASTE_JUDGE_SANDBOX_BUYER_PASSWORD` |
 
-`TODO (infra dev): paste buyer credentials from the PayPal Developer Dashboard, Testing Tools > Sandbox Accounts. Do NOT paste the app Client Secret here.`
+About these credentials: this is a dedicated sandbox buyer created only for judging, not an account the
+team develops or tests with. Anyone who reads this README can log in as it, so it holds nothing we
+need, a password shared with no other account, and a sandbox balance we can reset or delete after
+judging without touching our own test history or the e2e test's buyer. It is not the app's Client
+Secret, which never appears in this repo.
+
+<!-- Maintainers: create the account in the PayPal Developer Dashboard, Testing Tools > Sandbox Accounts
+(type Personal, give it a balance), then replace the two PASTE_ placeholders above. -->
 
 ## Run locally
 
