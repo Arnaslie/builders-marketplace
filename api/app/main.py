@@ -1,4 +1,4 @@
-"""DIY Wikipedia API (FastAPI).
+"""Builders Marketplace API (FastAPI).
 
 Run locally from api/:  uv run uvicorn app.main:app --reload --port 8000
 Project and cart routes serve fixture data (contract/fixtures). Checkout routes call the PayPal
@@ -403,7 +403,7 @@ def paypal_webhook(event: Annotated[dict[str, Any], Body()]) -> WebhookAck:
 
 def create_app(cors_origins: list[str] | None = None, fixtures: Path | None = None) -> FastAPI:
     app = FastAPI(
-        title="DIY Wikipedia API",
+        title="Builders Marketplace API",
         version="0.1.0",
         description="Contract for issue #1. Fixture-backed catalogue; checkout calls PayPal Orders v2.",
         # One schema per model (not Model-Input / Model-Output pairs) keeps generated TS names clean.

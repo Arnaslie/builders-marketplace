@@ -13,7 +13,7 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const project = await getProject(slug);
-  return project ? { title: `${project.title} | DIY Wikipedia`, description: project.summary } : {};
+  return project ? { title: `${project.title} | Builders Marketplace`, description: project.summary } : {};
 }
 
 export default async function ProjectPage({ params }: Props) {

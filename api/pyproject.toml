@@ -1,7 +1,7 @@
 [project]
-name = "diy-wikipedia-api"
+name = "builders-marketplace-api"
 version = "0.1.0"
-description = "FastAPI backend for DIY Wikipedia: projects, shopping agent cart, PayPal checkout."
+description = "FastAPI backend for Builders Marketplace: projects, shopping agent cart, PayPal checkout."
 requires-python = ">=3.12,<3.13"
 license = "MIT"
 dependencies = [

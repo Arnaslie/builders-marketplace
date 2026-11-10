@@ -1,6 +1,6 @@
 import { RecommendForm } from "../../components/recommend-form";
 
-export const metadata = { title: "Recommend a project | DIY Wikipedia" };
+export const metadata = { title: "Recommend a project | Builders Marketplace" };
 
 export default function RecommendPage() {
   return (

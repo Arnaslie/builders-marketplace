@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "DIY Wikipedia API",
+    "title": "Builders Marketplace API",
     "description": "Contract for issue #1. Fixture-backed catalogue; checkout calls PayPal Orders v2.",
     "version": "0.1.0"
   },

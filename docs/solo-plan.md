@@ -1,4 +1,4 @@
-# Solo plan: DIY Wikipedia to submission
+# Solo plan: Builders Marketplace to submission
 
 Written 2026-11-03. From today the project has one builder (Arnaslie). Every open issue is re-owned by that one person.
 
