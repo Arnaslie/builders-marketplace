@@ -1,6 +1,6 @@
 // The site seal, drawn after the 1994 CIA server page: a navy ring with white lettering over the
 // top, a gold lower band with red lettering, a white field, and a shield with a red compass star.
-// It is an original emblem for DIY Wikipedia, not a copy of any government seal.
+// It is an original emblem for Builders Marketplace, not a copy of any government seal.
 // Pure SVG, no external assets. `mark` is the small text-free version used inside the index banners.
 
 const NAVY = "#1b2a5c";
@@ -32,7 +32,7 @@ export function Seal() {
       className="seal"
       viewBox="0 0 150 150"
       role="img"
-      aria-label="Seal of the DIY Wikipedia Builders Marketplace"
+      aria-label="Seal of the Builders Marketplace"
     >
       {/* The reference seal sits on its own light-grey square, visibly off-white. */}
       <rect width="150" height="150" fill="#f0f0f0" />
@@ -51,7 +51,7 @@ export function Seal() {
 
       <text fill="#ffffff" fontFamily="Times, 'Times New Roman', serif" fontSize="12" fontWeight="700" letterSpacing="2">
         <textPath href="#seal-top-arc" startOffset="50%" textAnchor="middle">
-          DIY WIKIPEDIA
+          BUILDERS
         </textPath>
       </text>
       <text fill={RED} fontFamily="Times, 'Times New Roman', serif" fontSize="8.5" fontWeight="700" letterSpacing="1">

@@ -1,4 +1,4 @@
-# DIY Wikipedia
+# Builders Marketplace
 
 > A Pinterest-style catalogue of hands-on projects (furniture, gym equipment, forged knives). Every project page carries a materials-and-tools grid with prices and where to buy, and an AI agent can build your cart and check out with PayPal.
 
@@ -7,13 +7,13 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 ## Hosted demo
 
 - **Live URL:** `https://diy-wikipedia.onrender.com`
-- Note: free Render instances may spin down when idle; the first request can be slow. `TODO: confirm plan`
+- Note: free Render instances may spin down when idle; the first request can be slow.
 
 ## Features
 
 - Browse project ideas (seeded: chair, squat rack, knife) in a Pinterest-style gallery.
 - Per-project **AG Grid** table of materials and tools: quantity, price, retailer, buy link.
-- Live pricing and product matches from the **Channel3** product search API.
+- Real prices and product matches from the **Channel3** product search API (prices come from a committed cache, not a live scrape).
 - **Shopping agent**: builds the cart from the grid, skips tools you already own, swaps cheaper items within your budget.
 - **PayPal Orders v2 (sandbox)** checkout. In this demo the app acts as merchant of record; retailer fulfilment is simulated. No real money moves.
 
@@ -67,8 +67,8 @@ Two services: the Next.js web app at the repo root and the FastAPI API in `api/`
 Prerequisites: Node.js 20 and [uv](https://docs.astral.sh/uv/) (uv installs Python 3.12 if needed).
 
 ```bash
-git clone <repo-url>
-cd <repo>
+git clone https://github.com/Arnaslie/builders-marketplace.git
+cd builders-marketplace
 cp .env.example .env     # then fill in the values
 ```
 
@@ -95,10 +95,11 @@ The API allows browser calls from `CORS_ALLOW_ORIGINS` (comma-separated; default
 ### API contract
 
 `contract/openapi.json` is the agreed API contract (issue #1), generated from the Pydantic models
-in `api/app/models.py`. The frontend generates TypeScript types from it, e.g.
-`npx openapi-typescript contract/openapi.json -o app/lib/api-types.ts`. Seed data lives in
-`contract/fixtures/*.json`. Change a model, re-export, and commit both files together;
-`api/tests` and the verification skill fail if they drift.
+in `api/app/models.py`. The frontend generates TypeScript types from it with `npm run gen:types`
+(which writes `lib/api/schema.d.ts`). Seed data lives in `contract/fixtures/`, one file per project;
+the API reads every `*.json` in that directory, so adding a project is a new file, not a code change.
+Change a model, re-export, and commit both files together; `api/tests` and the verification skill
+fail if they drift.
 
 Required environment variables are listed in `.env.example`: `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENV=sandbox`, `CHANNEL3_API_KEY`, `LLM_API_KEY`, and optional `AG_GRID_LICENSE_KEY`.
 
@@ -117,7 +118,7 @@ Set the API's `CORS_ALLOW_ORIGINS` to the web service's public URL in the Render
 
 - Next.js 15 (App Router) on Node 20 for the web app
 - Python 3.12, FastAPI and Pydantic v2 for the API, managed with uv
-- [AG Grid](https://www.ag-grid.com/) for the materials grid
+- [AG Grid](https://www.ag-grid.com/) Community (the `ag-grid-community` and `ag-grid-react` packages) for the materials grid; Enterprise mode needs `AG_GRID_LICENSE_KEY`
 - [Channel3](https://trychannel3.com/developers) product search API
 - [PayPal Orders v2](https://developer.paypal.com/) (sandbox)
 - LLM provider: [Anthropic Claude](https://docs.anthropic.com/) (key in `LLM_API_KEY`)
@@ -125,4 +126,4 @@ Set the API's `CORS_ALLOW_ORIGINS` to the web service's public URL in the Render
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Copyright (c) 2026 DIY Wikipedia contributors.
+MIT, see [LICENSE](LICENSE). Copyright (c) 2026 Builders Marketplace contributors.

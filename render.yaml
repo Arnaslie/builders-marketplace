@@ -1,4 +1,4 @@
-# Render Blueprint for DIY Wikipedia: the Next.js web service and the FastAPI API service.
+# Render Blueprint for Builders Marketplace: the Next.js web service and the FastAPI API service.
 # Spec: https://render.com/docs/blueprint-spec  (checked 2026-10-31)
 # Stack: Next.js (App Router) on Node 20 (commands match package.json scripts);
 #        FastAPI on Python 3.12 managed by uv (api/pyproject.toml, api/uv.lock).

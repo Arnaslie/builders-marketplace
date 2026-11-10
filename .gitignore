@@ -8,9 +8,16 @@ next-env.d.ts
 .venv/
 __pycache__/
 .pytest_cache/
-# verify-diy-wikipedia skill: disposable app copies and proof artifacts
+# verify skill: disposable app copies and proof artifacts
 .verify/
 # build artifacts and local agent tooling (kept on disk, not tracked)
 tsconfig.tsbuildinfo
 *.tsbuildinfo
 .claude/
+# video submission: recorded takes and rendered frame sequences are large and local-only.
+# Keep the scripts, reel definitions and final cut; drop the raw media by default.
+video-submission/takes/
+video-submission/video/out/
+video-submission/video/.clipcache/
+video-submission/video/audio/
+!video-submission/video/audio/.gitkeep

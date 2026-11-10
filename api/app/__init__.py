@@ -1,1 +1,1 @@
-"""DIY Wikipedia API service."""
+"""Builders Marketplace API service."""

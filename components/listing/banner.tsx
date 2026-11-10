@@ -14,9 +14,9 @@ export function Banner({ number, variant }: Props) {
       <span className="banner banner--olive" aria-hidden="true">
         <SealMark size={28} />
         <span className="banner-agency">
-          DIY
+          Builders
           <br />
-          Wikipedia
+          Marketplace
           <br />
           Server
         </span>

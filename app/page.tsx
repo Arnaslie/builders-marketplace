@@ -22,7 +22,7 @@ export default async function Home({ searchParams }: Props) {
   // a rule, then the "Publications..." style list.
   return (
     <main className="listing">
-      <h1>DIY WIKIPEDIA MISSION</h1>
+      <h1>BUILDERS MARKETPLACE MISSION</h1>
       <p>
         In support of the home builder&apos;s fundamental role as principal maker of things around the house, the
         Server&apos;s mission is to:
@@ -32,7 +32,7 @@ export default async function Home({ searchParams }: Props) {
         tool priced out; and to let each builder tick what they already own and see what is left to buy.
       </p>
       <hr />
-      <h3>DIY Wikipedia Projects...</h3>
+      <h3>Builders Marketplace Projects...</h3>
       <ProjectIndex projects={projects.slice(offset, offset + PAGE_SIZE)} offset={offset} />
       <hr />
       <Pagination page={page} totalPages={totalPages} total={projects.length} pageSize={PAGE_SIZE} />

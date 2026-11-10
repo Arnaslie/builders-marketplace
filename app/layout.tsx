@@ -7,7 +7,7 @@ import { Seal } from "../components/seal";
 import { SmoothScroll } from "../components/smooth-scroll";
 
 export const metadata = {
-  title: "DIY Wikipedia",
+  title: "Builders Marketplace",
   description: "Hands-on projects with a materials grid and a PayPal-powered shopping agent.",
 };
 
@@ -26,11 +26,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         <SmoothScroll />
         <header className="masthead">
-          <Link href="/" className="masthead-seal" aria-label="DIY Wikipedia home">
+          <Link href="/" className="masthead-seal" aria-label="Builders Marketplace home">
             <Seal />
           </Link>
           <hr />
-          <p className="masthead-title">Welcome to the DIY Wikipedia Server</p>
+          <p className="masthead-title">Welcome to the Builders Marketplace Server</p>
           <hr />
           <nav className="site-nav" aria-label="Main">
             <Link href="/">Project Index</Link> | <Link href="/recommend">Recommend a Project</Link> |{" "}

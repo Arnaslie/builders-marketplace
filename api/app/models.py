@@ -1,4 +1,4 @@
-"""Contract models for the DIY Wikipedia API (issue #1).
+"""Contract models for the Builders Marketplace API (issue #1).
 
 Every model in this file is part of the public contract. FastAPI turns them into
 contract/openapi.json (api/scripts/export_openapi.py), and the frontend generates its

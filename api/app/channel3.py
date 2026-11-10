@@ -41,7 +41,7 @@ SEARCH_PATH = "/v1/search"
 ENV_KEY = "CHANNEL3_API_KEY"
 DEFAULT_TIMEOUT = 20.0  # seconds; search p50 is ~800 ms per trychannel3.com/developers
 MAX_LIMIT = 30  # documented maximum for SearchRequest.limit
-USER_AGENT = "diy-wikipedia-api/0.1 (+https://github.com/Arnaslie/builders-marketplace)"
+USER_AGENT = "builders-marketplace-api/0.1 (+https://github.com/Arnaslie/builders-marketplace)"
 
 # send(request, timeout) -> (status code, response body). HTTP errors are returned, not raised.
 Send = Callable[[urllib.request.Request, float], tuple[int, bytes]]

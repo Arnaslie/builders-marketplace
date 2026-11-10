@@ -6,7 +6,7 @@ import { cartRequestFromParams } from "../../lib/cart-link";
 import { formatMoney } from "../../lib/money";
 import { SAMPLE_CART_NOTE, isMockProject } from "../../lib/mock/ids";
 
-export const metadata = { title: "Cart | DIY Wikipedia" };
+export const metadata = { title: "Cart | Builders Marketplace" };
 
 // The cart is described by the URL (format in lib/cart-link.ts), so the agent panel can link to
 // its exact cart. POST /cart prices it with no LLM call; the same request goes to
@@ -145,7 +145,7 @@ export default async function CartPage({ searchParams }: Props) {
           <hr />
           <h2>Pay with PayPal</h2>
           <p>
-            You pay DIY Wikipedia once for the whole cart. Orders with the individual retailers are simulated for this
+            You pay Builders Marketplace once for the whole cart. Orders with the individual retailers are simulated for this
             demo; nothing will be shipped.
           </p>
           <PayPalCheckout request={request} />

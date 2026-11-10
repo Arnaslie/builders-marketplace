@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getCheckoutOrder, usingApi } from "../../../lib/api/client";
 import { formatMoney } from "../../../lib/money";
 
-export const metadata = { title: "Order received | DIY Wikipedia" };
+export const metadata = { title: "Order received | Builders Marketplace" };
 
 // The PayPal buttons send the buyer here after a capture: /checkout/success?order=<PayPal order id>.
 // The record is read back from the API, so this page shows what the server stored, not what the
