@@ -6,7 +6,6 @@
 import { useCallback, useMemo, useState } from "react";
 import type { MaterialLine, Swap } from "../lib/api/client";
 import { costBreakdown, toBreakdownLines } from "../lib/cost-breakdown";
-import { SAMPLE_CART_NOTE, isMockProject } from "../lib/mock/ids";
 import { AgentPanel } from "./agent-panel";
 import { CostCharts } from "./cost-charts";
 import { MaterialsGrid } from "./materials-grid";
@@ -40,22 +39,15 @@ export function ProjectShopping({ projectId, slug, lines, currency, licenseKey, 
       <CostCharts breakdown={breakdown} currency={currency} licenseKey={chartsLicenseKey} />
 
       <h2>Shopping Agent</h2>
-      {isMockProject(projectId) ? (
-        // The API has no such project, so the agent would only return a 404.
-        <p className="sample-note">
-          <b>NOTE:</b> {SAMPLE_CART_NOTE}
-        </p>
-      ) : (
-        <AgentPanel
-          projectId={projectId}
-          slug={slug}
-          lines={lines}
-          currency={currency}
-          owned={owned}
-          onSwapsChange={setSwappedIds}
-          onSwapDetails={setSwaps}
-        />
-      )}
+      <AgentPanel
+        projectId={projectId}
+        slug={slug}
+        lines={lines}
+        currency={currency}
+        owned={owned}
+        onSwapsChange={setSwappedIds}
+        onSwapDetails={setSwaps}
+      />
     </>
   );
 }

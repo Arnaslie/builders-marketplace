@@ -4,7 +4,8 @@
 // NEXT_PUBLIC_API_URL set   -> call the FastAPI service.
 // Either way the SAMPLE mock listings (lib/mock/projects.ts) are added after the real projects, so
 // the gallery looks the same whether the API is awake or asleep. Mocks are served here and never
-// sent to the API; a mock has no cart or checkout (see refuseSample).
+// sent to the API for reading. The agent may price one (the API holds contract/samples.json); a mock has
+// no cart page or checkout (see refuseSample).
 // Types come from lib/api/schema.d.ts, generated from contract/openapi.json (npm run gen:types).
 // Money fields are strings in the contract and stay strings here; format them at display time
 // (lib/money.ts).
@@ -227,14 +228,14 @@ async function apiError(res: Response): Promise<ApiError> {
   return new ApiError(res.status, detail);
 }
 
-// A mock project does not exist on the API (it would 404), and must never start a PayPal order.
-// The pages already skip the cart for mocks; this is the backstop for any caller that does not.
+// A mock project has placeholder prices and must never be priced for a cart or start a PayPal order.
+// The agent (buildCart) may price one; the cart page and checkout calls below refuse it. The pages
+// already skip the cart for mocks; this is the backstop for any caller that does not.
 function refuseSample(projectId: string): void {
   if (isMockProject(projectId)) throw new ApiError(422, SAMPLE_CART_NOTE);
 }
 
 export async function buildCart(request: BuildCartRequest): Promise<Cart> {
-  refuseSample(request.projectId);
   return postJson<Cart>("/agent/build-cart", request);
 }
 

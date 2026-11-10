@@ -45,7 +45,7 @@ export default async function CartPage({ searchParams }: Props) {
   const project = await getProject(slug);
   if (!project) notFound();
 
-  // Mocks are not on the API: pricing would 404 and PayPal must never be offered for one.
+  // Mocks have placeholder prices: no cart page, and PayPal must never be offered for one.
   if (isMockProject(project.id)) {
     return (
       <main>
