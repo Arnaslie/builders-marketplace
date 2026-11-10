@@ -2,10 +2,14 @@
 //
 // NEXT_PUBLIC_API_URL unset -> read contract/fixtures/*.json (same shapes the API returns).
 // NEXT_PUBLIC_API_URL set   -> call the FastAPI service.
+// Either way the SAMPLE mock listings (lib/mock/projects.ts) are added after the real projects, so
+// the gallery looks the same whether the API is awake or asleep. Mocks are served here and never
+// sent to the API; a mock has no cart or checkout (see refuseSample).
 // Types come from lib/api/schema.d.ts, generated from contract/openapi.json (npm run gen:types).
 // Money fields are strings in the contract and stay strings here; format them at display time
 // (lib/money.ts).
 import { toCents } from "../money";
+import { SAMPLE_CART_NOTE, isMockProject } from "../mock/ids";
 import type { components } from "./schema";
 
 export type Project = components["schemas"]["Project"];
@@ -39,12 +43,23 @@ async function loadFixtures(): Promise<Project[]> {
   ]);
   // The JSON is validated against the Project model by the API's own tests; TypeScript only
   // sees string literals here, so we assert the contract type.
-  const real = files.map((file) => file.default as unknown as Project);
-  // Mock listings pad the gallery to five pages until the real catalog grows (lib/mock/projects.ts).
-  // Imported lazily for the same reason as the fixtures: client components that import this
-  // module (recommend-form) must not bundle the mock catalog.
-  const { mockProjects } = await import("../mock/projects");
-  return [...real, ...mockProjects];
+  return files.map((file) => file.default as unknown as Project);
+}
+
+// Mock listings pad the gallery to five pages until the real catalog grows. Imported lazily for
+// the same reason as the fixtures: client components that import this module (recommend-form)
+// must not bundle the mock catalog.
+async function loadMocks(): Promise<Project[]> {
+  return (await import("../mock/projects")).mockProjects;
+}
+
+// Real summaries first, then the mocks. A mock whose id or slug a real project already uses is
+// dropped, so the real project wins.
+async function withMocks(real: ProjectSummary[]): Promise<ProjectSummary[]> {
+  const ids = new Set(real.map((p) => p.id));
+  const slugs = new Set(real.map((p) => p.slug));
+  const mocks = (await loadMocks()).filter((p) => !ids.has(p.id) && !slugs.has(p.slug));
+  return [...real, ...mocks.map(summarise)];
 }
 
 // Mirrors api/app/main.py list_projects: summary plus lineCount and estimatedTotal
@@ -129,20 +144,23 @@ class ApiUnavailableStatus extends Error {
 }
 
 export async function listProjects(): Promise<ProjectSummary[]> {
-  if (!usingApi) return (await loadFixtures()).map(summarise);
+  if (!usingApi) return withMocks((await loadFixtures()).map(summarise));
   try {
     const res = await apiFetch("/projects");
     if (!res.ok) throw new ApiUnavailableStatus(res.status, `GET /projects failed: HTTP ${res.status}`);
-    return (await res.json()) as ProjectSummary[];
+    return withMocks((await res.json()) as ProjectSummary[]);
   } catch (err) {
     if (!isUnavailable(err)) throw err;
     console.warn("API unavailable for GET /projects, serving fixtures:", err);
-    return (await loadFixtures()).map(summarise);
+    return withMocks((await loadFixtures()).map(summarise));
   }
 }
 
-// Returns null for an unknown slug so the page can call notFound().
+// Returns null for an unknown slug so the page can call notFound(). A mock slug is answered
+// here without calling the API, so a sample page never waits on a sleeping server.
 export async function getProject(slug: string): Promise<Project | null> {
+  const mock = (await loadMocks()).find((p) => p.slug === slug);
+  if (mock) return mock;
   if (!usingApi) return (await loadFixtures()).find((p) => p.slug === slug) ?? null;
   try {
     const res = await apiFetch(`/projects/${encodeURIComponent(slug)}`);
@@ -209,7 +227,14 @@ async function apiError(res: Response): Promise<ApiError> {
   return new ApiError(res.status, detail);
 }
 
-export function buildCart(request: BuildCartRequest): Promise<Cart> {
+// A mock project does not exist on the API (it would 404), and must never start a PayPal order.
+// The pages already skip the cart for mocks; this is the backstop for any caller that does not.
+function refuseSample(projectId: string): void {
+  if (isMockProject(projectId)) throw new ApiError(422, SAMPLE_CART_NOTE);
+}
+
+export async function buildCart(request: BuildCartRequest): Promise<Cart> {
+  refuseSample(request.projectId);
   return postJson<Cart>("/agent/build-cart", request);
 }
 
@@ -223,12 +248,14 @@ export async function getCheckoutConfig(): Promise<CheckoutConfig | null> {
 
 // POST /cart: price a cart with no LLM call. With request.swaps, exactly those swaps (re-checked
 // by the server); without it, the deterministic budget rules. Checkout charges this same cart.
-export function priceCart(request: CartRequest): Promise<Cart> {
+export async function priceCart(request: CartRequest): Promise<Cart> {
+  refuseSample(request.projectId);
   return postJson<Cart>("/cart", request);
 }
 
 // The server rebuilds the cart from the same request and creates the PayPal order for its total.
-export function createCheckoutOrder(request: CartRequest): Promise<PayPalOrder> {
+export async function createCheckoutOrder(request: CartRequest): Promise<PayPalOrder> {
+  refuseSample(request.projectId);
   return postJson<PayPalOrder>("/checkout/orders", request);
 }
 

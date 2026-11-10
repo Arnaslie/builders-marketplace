@@ -4,7 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 async function loadClient() {
   vi.resetModules();
   vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.test");
-  return import("./client");
+  const client = await import("./client");
+  // getProject loads the mock catalog before its first fetch. Load it now so the fake-timer
+  // tests below do not have to wait for that import (a mock slug never calls fetch).
+  await client.getProject("floating-wall-shelf");
+  return client;
 }
 
 const summaries = [{ id: "p1", slug: "from-api", title: "From API" }];
@@ -30,7 +34,7 @@ describe("read-only API calls while the API wakes up", () => {
     const pending = listProjects();
     await vi.runAllTimersAsync();
 
-    expect(await pending).toEqual(summaries);
+    expect((await pending).slice(0, summaries.length)).toEqual(summaries);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -64,7 +68,7 @@ describe("read-only API calls while the API wakes up", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { createCheckoutOrder } = await loadClient();
 
-    await expect(createCheckoutOrder({ projectSlug: "x" } as never)).rejects.toThrow("HTTP 503");
+    await expect(createCheckoutOrder({ projectId: "p1" } as never)).rejects.toThrow("HTTP 503");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -80,7 +84,7 @@ describe("read-only API calls while the API wakes up", () => {
       const pending = listProjects();
       await vi.runAllTimersAsync();
 
-      expect(await pending).toEqual(summaries);
+      expect((await pending).slice(0, summaries.length)).toEqual(summaries);
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
@@ -130,7 +134,7 @@ describe("read-only API calls while the API wakes up", () => {
       await vi.advanceTimersByTimeAsync(999);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       await vi.advanceTimersByTimeAsync(1);
-      expect(await pending).toEqual(summaries);
+      expect((await pending).slice(0, summaries.length)).toEqual(summaries);
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
@@ -144,7 +148,7 @@ describe("read-only API calls while the API wakes up", () => {
       await vi.advanceTimersByTimeAsync(1_999);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       await vi.advanceTimersByTimeAsync(1);
-      expect(await pending).toEqual(summaries);
+      expect((await pending).slice(0, summaries.length)).toEqual(summaries);
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
@@ -153,9 +157,97 @@ describe("read-only API calls while the API wakes up", () => {
       vi.stubGlobal("fetch", fetchMock);
       const { createCheckoutOrder } = await loadClient();
 
-      await expect(createCheckoutOrder({ projectSlug: "x" } as never)).rejects.toThrow("HTTP 429");
+      await expect(createCheckoutOrder({ projectId: "p1" } as never)).rejects.toThrow("HTTP 429");
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe("sample mock listings", () => {
+  const apiList = [
+    { id: "proj-chair", slug: "simple-wooden-chair", title: "Chair" },
+    { id: "mock-floating-wall-shelf", slug: "floating-wall-shelf", title: "API copy of a mock" },
+  ];
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("healthy API: real projects first, then mocks, with the API entry winning a duplicate", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(200, apiList)));
+    const { listProjects } = await loadClient();
+
+    const list = await listProjects();
+
+    expect(list.slice(0, 2)).toEqual(apiList);
+    expect(list).toHaveLength(2 + 46); // 47 mocks, one of them taken by the API's copy
+    expect(list.filter((p) => p.slug === "floating-wall-shelf")).toHaveLength(1);
+    expect(list.slice(2).every((p) => p.id.startsWith("mock-") && p.lineCount > 0)).toBe(true);
+  });
+
+  it("API down: the same set of listings, with fixtures standing in for the real projects", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    const { listProjects } = await loadClient();
+
+    const pending = listProjects();
+    await vi.runAllTimersAsync();
+    const list = await pending;
+
+    expect(list).toHaveLength(50);
+    expect(list.slice(3).every((p) => p.id.startsWith("mock-"))).toBe(true);
+    expect(list.slice(0, 3).every((p) => !p.id.startsWith("mock-"))).toBe(true);
+  });
+
+  it("no API: fixtures plus mocks", async () => {
+    vi.resetModules();
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "");
+    const { listProjects } = await import("./client");
+    expect(await listProjects()).toHaveLength(50);
+  });
+
+  it("a mock slug resolves without calling the API", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { getProject } = await loadClient();
+
+    const project = await getProject("floating-wall-shelf");
+
+    expect(project?.id).toBe("mock-floating-wall-shelf");
+    expect(project?.materials.length).toBeGreaterThan(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("an unknown slug is still null, and a real slug still calls the API", async () => {
+    const chair = { id: "proj-chair", slug: "simple-wooden-chair" };
+    const fetchMock = vi.fn().mockResolvedValueOnce(json(404)).mockResolvedValueOnce(json(200, chair));
+    vi.stubGlobal("fetch", fetchMock);
+    const { getProject } = await loadClient();
+
+    expect(await getProject("nope")).toBeNull();
+    expect(await getProject("simple-wooden-chair")).toEqual(chair);
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "https://api.test/projects/nope",
+      "https://api.test/projects/simple-wooden-chair",
+    ]);
+  });
+
+  it("never sends a mock project to the cart, agent or PayPal endpoints", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { buildCart, priceCart, createCheckoutOrder } = await loadClient();
+    const request = { projectId: "mock-floating-wall-shelf", owned: [] };
+
+    await expect(buildCart(request)).rejects.toThrow(/Sample project/);
+    await expect(priceCart(request)).rejects.toThrow(/Sample project/);
+    await expect(createCheckoutOrder(request)).rejects.toThrow(/Sample project/);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 
