@@ -238,16 +238,20 @@ describe("sample mock listings", () => {
     ]);
   });
 
-  it("never sends a mock project to the cart, agent or PayPal endpoints", async () => {
-    const fetchMock = vi.fn();
+  it("lets the agent price a mock project but never sends it to the cart or PayPal endpoints", async () => {
+    const cart = { projectId: "mock-floating-wall-shelf", subtotal: "10.00" };
+    const fetchMock = vi.fn().mockResolvedValue(json(200, cart));
     vi.stubGlobal("fetch", fetchMock);
     const { buildCart, priceCart, createCheckoutOrder } = await loadClient();
     const request = { projectId: "mock-floating-wall-shelf", owned: [] };
 
-    await expect(buildCart(request)).rejects.toThrow(/Sample project/);
-    await expect(priceCart(request)).rejects.toThrow(/Sample project/);
-    await expect(createCheckoutOrder(request)).rejects.toThrow(/Sample project/);
-    expect(fetchMock).not.toHaveBeenCalled();
+    await expect(buildCart(request)).resolves.toEqual(cart);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toBe("https://api.test/agent/build-cart");
+
+    await expect(priceCart(request)).rejects.toThrow(/no checkout/);
+    await expect(createCheckoutOrder(request)).rejects.toThrow(/no checkout/);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // still only the agent call
   });
 });
 

@@ -7,6 +7,6 @@ export function isMockProject(id: string): boolean {
   return id.startsWith(MOCK_ID_PREFIX);
 }
 
-// Shown where a cart or checkout would start. The API has no record of mock ids, so it would
-// answer 404 (and a mock must never reach PayPal).
-export const SAMPLE_CART_NOTE = "Sample project: placeholder materials and prices, so there is no cart or checkout for it.";
+// Shown where a checkout would start. The API prices a sample for the shopping agent but refuses to
+// check it out (and a mock must never reach PayPal).
+export const SAMPLE_CART_NOTE = "Sample project: placeholder prices, so there is no checkout for it.";
