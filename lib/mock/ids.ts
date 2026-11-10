@@ -6,3 +6,7 @@ export const MOCK_ID_PREFIX = "mock-";
 export function isMockProject(id: string): boolean {
   return id.startsWith(MOCK_ID_PREFIX);
 }
+
+// Shown where a checkout would start. The API prices a sample for the shopping agent but refuses to
+// check it out (and a mock must never reach PayPal).
+export const SAMPLE_CART_NOTE = "Sample project: placeholder prices, so there is no checkout for it.";

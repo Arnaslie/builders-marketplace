@@ -27,6 +27,7 @@ from .cart import (
     money,
     project_total,
 )
+from .drafts import DraftError, candidates, draft_lines, price_lines
 from .models import (
     BuildCartRequest,
     Cart,
@@ -45,6 +46,7 @@ from .models import (
     WebhookAck,
 )
 from .paypal import PayPalClient, PayPalError, PayPalUnavailable, approve_url, first_capture
+from .prices import PriceCache, prices_path
 from .store import FixtureStore, fixtures_dir
 
 # uvicorn configures its own "uvicorn.error" logger at INFO; reusing it means our lines show up in
@@ -72,8 +74,14 @@ def get_orders(request: Request) -> dict[str, Order]:
     return request.app.state.orders
 
 
+def get_drafts(request: Request) -> dict[str, Recommendation]:
+    return request.app.state.drafts
+
+
 Store = Annotated[FixtureStore, Depends(get_store)]
 Orders = Annotated[dict[str, Order], Depends(get_orders)]
+Drafts = Annotated[dict[str, Recommendation], Depends(get_drafts)]
+DRAFT_CURRENCY = "USD"  # drafts are only priced from USD cache entries (app/drafts.py)
 
 
 def _project_or_404(store: FixtureStore, project_id: str) -> Project:
@@ -147,22 +155,57 @@ def get_project(slug: str, store: Store) -> Project:
     "/recommendations",
     response_model=Recommendation,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        502: {"description": "The drafting model failed or returned nothing usable"},
+        503: {"description": "No LLM key is configured on the server"},
+    },
     tags=["projects"],
     operation_id="createRecommendation",
 )
-def create_recommendation(body: RecommendationRequest) -> Recommendation:
-    # TODO(backend): persist drafts and add a review flow; today the draft is echoed, not stored.
-    slug = re.sub(r"[^a-z0-9]+", "-", body.title.lower()).strip("-")
-    return Recommendation(
+def create_recommendation(body: RecommendationRequest, request: Request, drafts: Drafts) -> Recommendation:
+    """Draft a project from an idea: the LLM lists the materials, prices come only from the cache.
+
+    Lines with no cache match are returned unpriced (null prices) and left out of the total. The
+    draft is kept in memory (lost on restart) and is never listed by GET /projects.
+    """
+    try:
+        lines = draft_lines(body)
+    except DraftError as exc:
+        raise HTTPException(exc.status_code, exc.detail) from None
+    materials, total = price_lines(lines, request.app.state.price_candidates)
+    priced = sum(1 for m in materials if m.priced)
+    draft = Recommendation(
         id=f"rec_{secrets.token_hex(6)}",
         status="draft",
-        slug=slug,
+        slug=re.sub(r"[^a-z0-9]+", "-", body.title.lower()).strip("-"),
         title=body.title,
-        summary=body.summary,
-        steps=body.steps,
-        materials=body.materials,
+        description=body.description,
+        skill_level=body.skill_level,
+        image_url=body.image_url,
+        materials=materials,
+        estimated_total=money(total),
+        currency=DRAFT_CURRENCY,
+        priced_count=priced,
+        unpriced_count=len(materials) - priced,
         created_at=datetime.now(UTC),
     )
+    drafts[draft.id] = draft
+    return draft
+
+
+@router.get(
+    "/recommendations/{recommendation_id}",
+    response_model=Recommendation,
+    responses=NOT_FOUND,
+    tags=["projects"],
+    operation_id="getRecommendation",
+)
+def get_recommendation(recommendation_id: str, drafts: Drafts) -> Recommendation:
+    """A draft by id (memory only: an API restart forgets it)."""
+    draft = drafts.get(recommendation_id)
+    if draft is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"recommendation {recommendation_id!r} not found")
+    return draft
 
 
 # --- Shopping agent -------------------------------------------------------------------------
@@ -200,6 +243,7 @@ def price_cart(body: CartRequest, store: Store) -> Cart:
 # Every fixture project is priced in USD; the JS SDK script tag must use the same currency.
 CHECKOUT_CURRENCY = "USD"
 PAYPAL_CREATED_STATUSES = {"CREATED", "APPROVED", "COMPLETED"}
+SAMPLE_CHECKOUT_REFUSAL = "Sample project: placeholder prices, so there is no checkout for it."
 # One capture at a time, so a double-clicked Pay button cannot send two captures for one order.
 _capture_lock = threading.Lock()
 
@@ -270,7 +314,11 @@ def create_checkout_order(body: CartRequest, store: Store, orders: Orders, paypa
     The client sends the same input as POST /cart, not prices: the server recomputes the cart
     (re-checking any swaps), so a tampered browser cannot set its own total.
     """
-    cart = _cart_or_422(_project_or_404(store, body.project_id), body)
+    project = _project_or_404(store, body.project_id)
+    if store.is_sample(project.id):
+        # Placeholder prices must never reach PayPal, whatever the browser sends.
+        raise HTTPException(UNPROCESSABLE, SAMPLE_CHECKOUT_REFUSAL)
+    cart = _cart_or_422(project, body)
     if not cart.lines:
         raise HTTPException(UNPROCESSABLE, "cart is empty; nothing to pay for")
     our_id = f"ord_{secrets.token_hex(6)}"
@@ -411,6 +459,10 @@ def create_app(cors_origins: list[str] | None = None, fixtures: Path | None = No
     )
     app.state.store = FixtureStore.from_dir(fixtures or fixtures_dir())
     app.state.orders = {}
+    app.state.drafts = {}  # recommendation id -> draft; memory only, never mixed into the store
+    cache_file = prices_path()
+    cache = PriceCache.load(cache_file) if cache_file is not None else PriceCache()
+    app.state.price_candidates = candidates(app.state.store.projects(), cache)
     # None when PAYPAL_CLIENT_ID/SECRET are unset: checkout routes then answer 503. Tests replace it.
     app.state.paypal = PayPalClient.from_env()
     app.add_middleware(

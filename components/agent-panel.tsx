@@ -1,72 +1,93 @@
 "use client";
 
-// Shopping agent panel (issue #5): budget + "I own this" checkboxes -> POST /agent/build-cart ->
-// the cart with each swap and its reason. All money comes back from the server as strings and is
+// Shopping agent panel (issue #5): budget -> POST /agent/build-cart -> the cart with each swap and
+// its reason. The "owned" list is not a second set of checkboxes: it comes from the grid's
+// "Already own it" column (state lives in components/project-shopping.tsx), and the lines the
+// agent swaps are highlighted in that grid. All money comes back from the server as strings and is
 // only formatted here; the browser never computes a price. When the agent could not run, the API
 // answers with the deterministic cart and agentUsed false, and the panel says reasons are
 // unavailable instead of showing a reason the model did not write.
 import Link from "next/link";
 import { useId, useState, type FormEvent } from "react";
-import { buildCart, usingApi, type Cart, type MaterialLine } from "../lib/api/client";
-import { cartHref } from "../lib/cart-link";
+import type { Cart, MaterialLine, Swap } from "../lib/api/client";
+import { requestCart, swapSentence, swappedLineIds } from "../lib/agent-swaps";
+import { isMockProject } from "../lib/mock/ids";
 import { formatCents, formatMoney, toCents } from "../lib/money";
 
-const BUDGET_PATTERN = /^\d{1,7}(\.\d{1,2})?$/;
+type Props = {
+  projectId: string;
+  slug: string;
+  lines: MaterialLine[];
+  currency: string;
+  owned: Record<string, boolean>; // the grid's toggles
+  onSwapsChange: (lineIds: string[]) => void; // which grid rows to highlight
+  onSwapDetails?: (swaps: Swap[]) => void; // the swaps themselves, for the cost charts
+};
 
-// "200" and "200.5" become "200.00" and "200.50", the contract's money format.
-function parseBudget(raw: string): { ok: true; value: string | undefined } | { ok: false } {
-  const text = raw.trim().replace(/^\$/, "");
-  if (text === "") return { ok: true, value: undefined };
-  if (!BUDGET_PATTERN.test(text)) return { ok: false };
-  const [whole, frac = ""] = text.split(".");
-  return { ok: true, value: `${whole}.${frac.padEnd(2, "0")}` };
-}
-
-type Props = { projectId: string; slug: string; lines: MaterialLine[]; currency: string };
-
-export function AgentPanel({ projectId, slug, lines, currency }: Props) {
-  const id = useId();
+export function AgentPanel({ projectId, slug, lines, currency, owned, onSwapsChange, onSwapDetails }: Props) {
   const [budget, setBudget] = useState("");
-  const [owned, setOwned] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(lines.map((line) => [line.id, line.ownedDefault])),
-  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // The cart together with the inputs that produced it, so "Go to the cart" links to exactly this
-  // cart even if the form is edited afterwards.
-  const [result, setResult] = useState<{ cart: Cart; href: string } | null>(null);
-
-  // Tools first: they are the usual "I already have one" items.
-  const ordered = [...lines].sort((a, b) => Number(b.category === "tool") - Number(a.category === "tool"));
+  // cart even if the grid is edited afterwards.
+  const [result, setResult] = useState<{ cart: Cart; href: string | null } | null>(null);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    if (!usingApi) {
-      setError("The shopping agent needs the API server (NEXT_PUBLIC_API_URL is not set on this copy of the site).");
-      return;
-    }
-    const parsed = parseBudget(budget);
-    if (!parsed.ok) {
-      setError("Budget must be an amount such as 200 or 199.99.");
-      return;
-    }
-    setBusy(true);
     setResult(null);
-    try {
-      const ownedIds = lines.filter((line) => owned[line.id]).map((line) => line.id);
-      const cart = await buildCart({ projectId, owned: ownedIds, ...(parsed.value ? { budget: parsed.value } : {}) });
-      setResult({ cart, href: cartHref(slug, ownedIds, parsed.value, cart) });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not build the cart.");
-    } finally {
-      setBusy(false);
+    onSwapsChange([]);
+    onSwapDetails?.([]);
+    setBusy(true);
+    const outcome = await requestCart({ projectId, slug, lineIds: lines.map((line) => line.id), owned, budgetText: budget });
+    setBusy(false);
+    if (outcome.ok) {
+      // A sample project is priced for the agent but has no cart page or checkout, so no pay link.
+      setResult({ cart: outcome.cart, href: isMockProject(projectId) ? null : outcome.href });
+      onSwapsChange(swappedLineIds(outcome.cart));
+      onSwapDetails?.(outcome.cart.swaps);
+    } else {
+      setError(outcome.error);
     }
   }
 
   return (
+    <AgentPanelView
+      currency={currency}
+      budget={budget}
+      onBudgetChange={setBudget}
+      ownedCount={lines.filter((line) => owned[line.id]).length}
+      lineCount={lines.length}
+      busy={busy}
+      error={error}
+      result={result}
+      onSubmit={onSubmit}
+    />
+  );
+}
+
+type ViewProps = {
+  currency: string;
+  budget: string;
+  onBudgetChange: (value: string) => void;
+  ownedCount: number;
+  lineCount: number;
+  busy: boolean;
+  error: string | null;
+  result: { cart: Cart; href: string | null } | null;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+};
+
+// Everything the panel shows, with no state of its own, so each state (idle, loading, error,
+// result) can be rendered and checked directly.
+export function AgentPanelView({ currency, budget, onBudgetChange, ownedCount, lineCount, busy, error, result, onSubmit }: ViewProps) {
+  const id = useId();
+  return (
     <section className="agent-panel" id="agent-panel">
-      <p>Tell the agent your budget and what you already own. It builds the cart and swaps in cheaper listed products where it must.</p>
+      <p>
+        Tell the agent your budget. It builds the cart from the items you have not ticked as owned in the grid above, and swaps in
+        cheaper listed products where it must. Swapped rows are highlighted in the grid.
+      </p>
       <form className="agent-form" onSubmit={onSubmit}>
         <div className="field">
           <label htmlFor={`${id}-budget`}>Budget ({currency}, optional)</label>
@@ -76,29 +97,22 @@ export function AgentPanel({ projectId, slug, lines, currency }: Props) {
             inputMode="decimal"
             placeholder="200.00"
             value={budget}
-            onChange={(e) => setBudget(e.target.value)}
+            onChange={(e) => onBudgetChange(e.target.value)}
           />
         </div>
-        <fieldset className="fieldset">
-          <legend>Already own</legend>
-          <ul className="owned-list">
-            {ordered.map((line) => (
-              <li key={line.id}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={owned[line.id] ?? false}
-                    onChange={(e) => setOwned((current) => ({ ...current, [line.id]: e.target.checked }))}
-                  />{" "}
-                  {line.name} <small>({line.category})</small>
-                </label>
-              </li>
-            ))}
-          </ul>
-        </fieldset>
+        <p id="agent-owned-count">
+          <small>
+            Already own it in the grid: {ownedCount} of {lineCount} items (these are left out of the cart).
+          </small>
+        </p>
         {error && (
           <p className="error" role="alert">
             {error}
+          </p>
+        )}
+        {busy && (
+          <p id="agent-loading" role="status">
+            The agent is building your cart. This can take up to 30 seconds, longer if the server is waking up.
           </p>
         )}
         <div>
@@ -113,7 +127,7 @@ export function AgentPanel({ projectId, slug, lines, currency }: Props) {
   );
 }
 
-function AgentCart({ cart, href }: { cart: Cart; href: string }) {
+export function AgentCart({ cart, href }: { cart: Cart; href: string | null }) {
   const agentUsed = cart.agentUsed === true;
   const overBy = cart.budget !== null && !cart.withinBudget ? toCents(cart.subtotal) - toCents(cart.budget) : 0;
   let status: string;
@@ -169,11 +183,10 @@ function AgentCart({ cart, href }: { cart: Cart; href: string }) {
       {cart.swaps.length > 0 && (
         <>
           <h3>Swaps</h3>
-          <ul className="swap-list">
+          <ul className="swap-list" id="agent-swaps">
             {cart.swaps.map((swap) => (
               <li key={swap.lineId}>
-                <b>{swap.from.name}</b> became <b>{swap.to.name}</b> ({swap.to.retailer}), saving{" "}
-                {formatMoney(swap.savings, cart.currency)}.
+                {swapSentence(swap, cart.currency)} ({swap.to.retailer}).
                 {agentUsed && <> {swap.reason}</>}
               </li>
             ))}
@@ -181,9 +194,11 @@ function AgentCart({ cart, href }: { cart: Cart; href: string }) {
         </>
       )}
 
-      <p>
-        <Link href={href}>Go to the cart and pay with PayPal</Link>
-      </p>
+      {href !== null && (
+        <p>
+          <Link href={href}>Go to the cart and pay with PayPal</Link>
+        </p>
+      )}
     </div>
   );
 }

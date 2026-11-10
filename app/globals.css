@@ -364,6 +364,26 @@ a:visited .banner {
   font-size: 0.875em;
 }
 
+/* Draft recommendation: a plain inverted label, no colour or radius (1994 look). */
+.result.draft {
+  max-width: none;
+}
+
+.badge-draft {
+  font-size: 0.5em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 1px 6px;
+  vertical-align: middle;
+  background: var(--color-text);
+  color: var(--color-bg);
+}
+
+.draft-unpriced {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
 /* Shopping agent panel: a 1994 form and a plain bordered table. Checkboxes stay browser default. */
 .agent-panel {
   max-width: 46rem;
@@ -430,4 +450,17 @@ a:visited .banner {
 /* PayPal renders its buttons into this box; it sizes them between 150px and 750px wide. */
 .paypal-buttons {
   max-width: 25rem;
+}
+
+/* Cost-breakdown charts (issue #8): two boxes side by side, stacked on a narrow screen. */
+.chart-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.chart-box {
+  flex: 1 1 18rem;
+  height: 20rem;
+  border: 1px solid var(--color-chrome-dark);
 }

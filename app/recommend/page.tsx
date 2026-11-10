@@ -7,8 +7,8 @@ export default function RecommendPage() {
     <main>
       <h1>Recommend a project</h1>
       <p className="lede">
-        Describe a build you would like to see. Add what it needs; prices are filled in later, so none are asked for
-        here.
+        Describe a build you would like to see. We draft the materials list and price what we can from our cache.
+        Items we cannot price are shown as unpriced.
       </p>
       <RecommendForm />
     </main>

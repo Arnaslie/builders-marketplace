@@ -1,0 +1,64 @@
+# PayPal sandbox smoke test: a real sandbox payment through the buyer's PayPal popup (e2e/).
+# Manual only. The sandbox login page is flaky, so this is a check you run before a demo or a
+# submission, not a gate on every push. Docs:
+#   Secrets:           https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets
+#   workflow_dispatch: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_dispatch
+#   Playwright on CI:  https://playwright.dev/docs/ci-intro
+name: PayPal sandbox e2e
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Web service to test
+        default: https://diy-wikipedia.onrender.com
+      api_url:
+        description: API service behind it
+        default: https://diy-wikipedia-api.onrender.com
+      project:
+        description: Project slug to build the cart from
+        default: simple-wooden-chair
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paypal-e2e # one sandbox order at a time
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: cart -> PayPal popup -> stored order
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "20" # matches package.json engines.node and render.yaml NODE_VERSION
+
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+
+      - name: Run the smoke test
+        run: npx playwright test
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+          API_URL: ${{ inputs.api_url }}
+          CART_PROJECT: ${{ inputs.project }}
+          PAYPAL_SANDBOX_BUYER_EMAIL: ${{ secrets.PAYPAL_SANDBOX_BUYER_EMAIL }}
+          PAYPAL_SANDBOX_BUYER_PASSWORD: ${{ secrets.PAYPAL_SANDBOX_BUYER_PASSWORD }}
+
+      # Trace, screenshot and video of a failed run: open with `npx playwright show-trace`.
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 7
