@@ -1,12 +1,13 @@
 // Mock listings so the gallery has enough cards to page through while the real catalog is
 // still three fixtures. Frontend-only: the FastAPI service and contract/fixtures never see these.
+// lib/api/client.ts adds them after the real projects whether or not the API is up.
 //
 // Every mock is a full contract `Project` (steps + materials), not just a card, so its detail
 // page and the AG Grid render instead of 404ing. Output is deterministic (no Math.random) so
 // server and client renders match and the build is reproducible.
 //
 // Mock ids start with "mock-"; the gallery labels those cards SAMPLE so nobody mistakes them
-// for real priced projects. Delete this file and its import in lib/api/client.ts to remove them.
+// for real priced projects. Delete this file and loadMocks() in lib/api/client.ts to remove them.
 import type { components } from "../api/schema";
 import { MOCK_ID_PREFIX } from "./ids";
 
