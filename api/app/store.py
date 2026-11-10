@@ -11,6 +11,7 @@ cache fails startup like a broken fixture; a cache entry for a line that no long
 skipped with a warning (api/tests/test_fixtures.py catches that in CI).
 """
 
+import json
 import logging
 import os
 from pathlib import Path
@@ -22,10 +23,30 @@ log = logging.getLogger("uvicorn.error")
 
 # api/app/store.py -> parents[2] is the repo root.
 DEFAULT_FIXTURES_DIR = Path(__file__).resolve().parents[2] / "contract" / "fixtures"
+DEFAULT_SAMPLES_PATH = Path(__file__).resolve().parents[2] / "contract" / "samples.json"
+SAMPLE_ID_PREFIX = "mock-"  # matches MOCK_ID_PREFIX in lib/mock/ids.ts
 
 
 def fixtures_dir() -> Path:
     return Path(os.environ.get("CONTRACT_FIXTURES_DIR", DEFAULT_FIXTURES_DIR))
+
+
+def samples_path() -> Path | None:
+    """contract/samples.json, or CONTRACT_SAMPLES_PATH; an empty value disables the samples."""
+    raw = os.environ.get("CONTRACT_SAMPLES_PATH")
+    if raw is None:
+        return DEFAULT_SAMPLES_PATH
+    return Path(raw) if raw else None
+
+
+def load_samples(path: Path) -> list[Project]:
+    """The SAMPLE projects (ids start "mock-"), validated like fixtures. Generated from the
+    frontend catalog by scripts/export-samples.mjs."""
+    projects = [Project.model_validate(item) for item in json.loads(path.read_text(encoding="utf-8"))]
+    bad = [p.id for p in projects if not p.id.startswith(SAMPLE_ID_PREFIX)]
+    if bad:
+        raise ValueError(f"sample ids must start with {SAMPLE_ID_PREFIX!r}: {bad}")
+    return projects
 
 
 def load_projects(directory: Path) -> list[Project]:
@@ -74,10 +95,11 @@ def apply_prices(projects: list[Project], cache: PriceCache) -> list[Project]:
 
 
 class FixtureStore:
-    def __init__(self, projects: list[Project]) -> None:
+    def __init__(self, projects: list[Project], samples: list[Project] | None = None) -> None:
         self._by_slug: dict[str, Project] = {}
         self._by_id: dict[str, Project] = {}
-        for project in projects:
+        self._samples: dict[str, Project] = {}
+        for project in [*projects, *(samples or [])]:
             if project.slug in self._by_slug or project.id in self._by_id:
                 raise ValueError(f"duplicate project id or slug in fixtures: {project.id} / {project.slug}")
             line_ids = [line.id for line in project.materials]
@@ -88,6 +110,8 @@ class FixtureStore:
                 raise ValueError(f"project {project.id} has lines in {sorted(mixed)}, expected {project.currency}")
             self._by_slug[project.slug] = project
             self._by_id[project.id] = project
+        for sample in samples or []:
+            self._samples[sample.id] = sample
 
     @classmethod
     def from_dir(cls, directory: Path) -> "FixtureStore":
@@ -96,13 +120,21 @@ class FixtureStore:
         cache_file = prices_path()
         if cache_file is not None and cache_file.exists():
             projects = apply_prices(projects, PriceCache.load(cache_file))
-        return cls(projects)
+        sample_file = samples_path()
+        # Samples keep their placeholder prices: the Channel3 overlay is for real projects only.
+        samples = load_samples(sample_file) if sample_file is not None and sample_file.exists() else []
+        return cls(projects, samples)
 
     def projects(self) -> list[Project]:
-        return list(self._by_slug.values())
+        """The real projects. Samples are priced by id but not listed; the site adds its own."""
+        return [p for p in self._by_slug.values() if p.id not in self._samples]
 
     def by_slug(self, slug: str) -> Project | None:
-        return self._by_slug.get(slug)
+        project = self._by_slug.get(slug)
+        return None if project is not None and project.id in self._samples else project
 
     def by_id(self, project_id: str) -> Project | None:
         return self._by_id.get(project_id)
+
+    def is_sample(self, project_id: str) -> bool:
+        return project_id in self._samples

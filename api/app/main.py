@@ -243,6 +243,7 @@ def price_cart(body: CartRequest, store: Store) -> Cart:
 # Every fixture project is priced in USD; the JS SDK script tag must use the same currency.
 CHECKOUT_CURRENCY = "USD"
 PAYPAL_CREATED_STATUSES = {"CREATED", "APPROVED", "COMPLETED"}
+SAMPLE_CHECKOUT_REFUSAL = "Sample project: placeholder prices, so there is no checkout for it."
 # One capture at a time, so a double-clicked Pay button cannot send two captures for one order.
 _capture_lock = threading.Lock()
 
@@ -313,7 +314,11 @@ def create_checkout_order(body: CartRequest, store: Store, orders: Orders, paypa
     The client sends the same input as POST /cart, not prices: the server recomputes the cart
     (re-checking any swaps), so a tampered browser cannot set its own total.
     """
-    cart = _cart_or_422(_project_or_404(store, body.project_id), body)
+    project = _project_or_404(store, body.project_id)
+    if store.is_sample(project.id):
+        # Placeholder prices must never reach PayPal, whatever the browser sends.
+        raise HTTPException(UNPROCESSABLE, SAMPLE_CHECKOUT_REFUSAL)
+    cart = _cart_or_422(project, body)
     if not cart.lines:
         raise HTTPException(UNPROCESSABLE, "cart is empty; nothing to pay for")
     our_id = f"ord_{secrets.token_hex(6)}"
