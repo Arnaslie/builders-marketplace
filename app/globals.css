@@ -451,3 +451,16 @@ a:visited .banner {
 .paypal-buttons {
   max-width: 25rem;
 }
+
+/* Cost-breakdown charts (issue #8): two boxes side by side, stacked on a narrow screen. */
+.chart-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.chart-box {
+  flex: 1 1 18rem;
+  height: 20rem;
+  border: 1px solid var(--color-chrome-dark);
+}

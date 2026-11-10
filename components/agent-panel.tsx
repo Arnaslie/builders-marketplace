@@ -9,7 +9,7 @@
 // unavailable instead of showing a reason the model did not write.
 import Link from "next/link";
 import { useId, useState, type FormEvent } from "react";
-import type { Cart, MaterialLine } from "../lib/api/client";
+import type { Cart, MaterialLine, Swap } from "../lib/api/client";
 import { requestCart, swapSentence, swappedLineIds } from "../lib/agent-swaps";
 import { formatCents, formatMoney, toCents } from "../lib/money";
 
@@ -20,9 +20,10 @@ type Props = {
   currency: string;
   owned: Record<string, boolean>; // the grid's toggles
   onSwapsChange: (lineIds: string[]) => void; // which grid rows to highlight
+  onSwapDetails?: (swaps: Swap[]) => void; // the swaps themselves, for the cost charts
 };
 
-export function AgentPanel({ projectId, slug, lines, currency, owned, onSwapsChange }: Props) {
+export function AgentPanel({ projectId, slug, lines, currency, owned, onSwapsChange, onSwapDetails }: Props) {
   const [budget, setBudget] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,12 +36,14 @@ export function AgentPanel({ projectId, slug, lines, currency, owned, onSwapsCha
     setError(null);
     setResult(null);
     onSwapsChange([]);
+    onSwapDetails?.([]);
     setBusy(true);
     const outcome = await requestCart({ projectId, slug, lineIds: lines.map((line) => line.id), owned, budgetText: budget });
     setBusy(false);
     if (outcome.ok) {
       setResult({ cart: outcome.cart, href: outcome.href });
       onSwapsChange(swappedLineIds(outcome.cart));
+      onSwapDetails?.(outcome.cart.swaps);
     } else {
       setError(outcome.error);
     }

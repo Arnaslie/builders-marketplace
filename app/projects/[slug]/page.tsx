@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ProjectImage } from "../../../components/project-image";
 import { ProjectShopping } from "../../../components/project-shopping";
 import { agGridLicenseKey } from "../../../lib/ag-grid-license";
+import { agChartsLicenseKey } from "../../../lib/ag-charts-license";
 import { getProject } from "../../../lib/api/client";
 import { isMockProject } from "../../../lib/mock/ids";
 
@@ -46,6 +47,7 @@ export default async function ProjectPage({ params }: Props) {
         lines={project.materials}
         currency={project.currency}
         licenseKey={agGridLicenseKey()}
+        chartsLicenseKey={agChartsLicenseKey()}
       />
 
       <h2>Steps</h2>
