@@ -7,6 +7,8 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 ## Hosted demo
 
 - **Live URL:** `https://diy-wikipedia.onrender.com`
+- Note: the hostname keeps the project's original slug. It is the live Render service's own subdomain
+  and only changes when the service is migrated, so the URL above is correct as written.
 - Note: free Render instances may spin down when idle; the first request can be slow.
 
 ## Features
@@ -22,7 +24,8 @@ Built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/).
 Sandbox only: no real money moves and nothing ships.
 
 **1. Wake the API first.** The API runs on Render's free plan, which spins it down when idle and can take
-up to about 50 seconds to wake. Open https://diy-wikipedia-api.onrender.com/healthz and wait for a
+up to about 50 seconds to wake. Open the API's health check at
+https://diy-wikipedia-api.onrender.com/healthz (same original slug as the web URL above) and wait for a
 response before you start. While the API is asleep, the gallery and project pages fall back to seed
 data and still load, but building a cart and paying need the live API. If a page shows "SERVER ERROR",
 wait a few seconds and click **Try again**.
@@ -107,10 +110,14 @@ Required environment variables are listed in `.env.example`: `PAYPAL_CLIENT_ID`,
 
 `render.yaml` defines two web services:
 
-| Service | Build | Start | Health |
-|---|---|---|---|
-| `diy-wikipedia` (Next.js) | `npm ci && npm run build` | `npm start` | `/healthz` |
-| `diy-wikipedia-api` (FastAPI) | `pip install uv==0.12.24 && cd api && uv sync --locked --no-dev` | `cd api && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $PORT` | `/healthz` |
+| Service | Name in `render.yaml` | Live URL | Build | Start | Health |
+|---|---|---|---|---|---|
+| Web (Next.js) | `diy wikipedia` | https://diy-wikipedia.onrender.com | `npm ci && npm run build` | `npm start` | `/healthz` |
+| API (FastAPI) | `diy-wikipedia-api` | https://diy-wikipedia-api.onrender.com | `pip install uv==0.12.24 && cd api && uv sync --locked --no-dev` | `cd api && .venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $PORT` | `/healthz` |
+
+The **Name** column is the literal `name:` field in `render.yaml`, not the product name: both values are
+the identifiers of already-running Render services, and renaming either here would stop the Blueprint
+matching the live service. The hostnames carry the same original slug for the same reason.
 
 Set the API's `CORS_ALLOW_ORIGINS` to the web service's public URL in the Render dashboard.
 
