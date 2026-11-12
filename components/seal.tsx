@@ -1,21 +1,23 @@
 "use client";
 
 // The site seal, drawn after the 1994 CIA server page: a navy ring with white lettering over the
-// top, a gold lower band with red lettering, a white field, and a shield with a red compass star.
+// top, a plain gold lower band, a white field, and a shield with a red compass star.
 // It is an original emblem for Builders Marketplace, not a copy of any government seal.
 //
 // `SealMark` is the small flat SVG used inside the index banners; it never touches three.js.
-// `Seal` is the masthead emblem. It builds the emblem in three.js on the client and slowly spins
-// it around its vertical axis. The navy ring, gold band and gold outlines are real
-// `MeshStandardMaterial` meshes under an environment map, so they catch light and read metallic;
-// the lettering, hammer, shield and compass star are painted into a transparent canvas texture
-// laid over the metal. The two ring labels are rasterized from the SAME `<textPath>` SVG the flat
-// fallback uses, so the browser lays them out identically (correct arc, un-mirrored on the front).
+// `Seal` is the masthead emblem. It builds the emblem in three.js on the client and spins it
+// around its vertical axis only while a listing page is open, holding still on a project page.
+// The navy ring, gold band and gold outlines are real `MeshStandardMaterial` meshes under an
+// environment map, so they catch light and read metallic; the lettering, hammer, shield and
+// compass star are painted into a transparent canvas texture laid over the metal. The ring label is
+// rasterized from the SAME `<textPath>` SVG the flat fallback uses, so the browser lays it out
+// identically (correct arc, un-mirrored on the front).
 // The coin body is a flat cylinder whose circular face turns toward the camera, so it reads as a
 // coin with a thin edge instead of a blue bar. On a server render (or a browser without WebGL)
 // the flat, white-backed SVG is shown instead, so the masthead never flashes empty.
 
 import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
@@ -52,10 +54,9 @@ function FlatSeal() {
     <svg viewBox="0 0 150 150" role="img" aria-label="Seal of the Builders Marketplace">
       <rect width="150" height="150" fill="#ffffff" />
       <defs>
-        {/* Top arc, left to right over the top; glyphs grow outward from radius 60. */}
+        {/* Top arc, left to right over the top; glyphs grow outward from radius 60. It carries the
+            full name, so it spans the whole 180-degree top half of the ring. */}
         <path id="seal-top-arc" d="M 15 75 A 60 60 0 0 1 135 75" />
-        {/* Bottom arc, left to right under the bottom (20 degrees either side); glyphs grow inward. */}
-        <path id="seal-bottom-arc" d="M 12.04 97.92 A 67 67 0 0 0 137.96 97.92" />
       </defs>
 
       <circle cx="75" cy="75" r="72" fill={NAVY} />
@@ -64,13 +65,8 @@ function FlatSeal() {
       <circle cx="75" cy="75" r="72" fill="none" stroke={GOLD} strokeWidth="1.5" />
       <circle cx="75" cy="75" r="52" fill="#ffffff" stroke={GOLD} strokeWidth="1.5" />
 
-      <text fill="#ffffff" fontFamily="Times, 'Times New Roman', serif" fontSize="12" fontWeight="700" letterSpacing="2">
+      <text fill="#ffffff" fontFamily="Times, 'Times New Roman', serif" fontSize="12" fontWeight="700" letterSpacing="1">
         <textPath href="#seal-top-arc" startOffset="50%" textAnchor="middle">
-          BUILDERS
-        </textPath>
-      </text>
-      <text fill={RED} fontFamily="Times, 'Times New Roman', serif" fontSize="8.5" fontWeight="700" letterSpacing="1">
-        <textPath href="#seal-bottom-arc" startOffset="50%" textAnchor="middle">
           BUILDERS MARKETPLACE
         </textPath>
       </text>
@@ -85,7 +81,7 @@ function FlatSeal() {
   );
 }
 
-// The two ring labels, as an SVG fragment. These are byte-for-byte the same <textPath> elements
+// The top ring label, as an SVG fragment. This is byte-for-byte the same <textPath> element
 // as FlatSeal, which is the single source of truth for how the front face must read. Hand-placing
 // the glyphs in canvas 2D is too easy to get subtly wrong (arc direction, letter spacing, glyph
 // rotation) — rasterizing the browser's own layout stays correct on every platform.
@@ -94,13 +90,9 @@ function ringLabelsSvg(): string {
     `<svg xmlns="http://www.w3.org/2000/svg" width="150" height="150" viewBox="0 0 150 150">` +
     `<defs>` +
     `<path id="seal-top-arc" d="M 15 75 A 60 60 0 0 1 135 75"/>` +
-    `<path id="seal-bottom-arc" d="M 12.04 97.92 A 67 67 0 0 0 137.96 97.92"/>` +
     `</defs>` +
-    `<text fill="#ffffff" font-family="Times, 'Times New Roman', serif" font-size="12" font-weight="700" letter-spacing="2">` +
-    `<textPath href="#seal-top-arc" startOffset="50%" text-anchor="middle">BUILDERS</textPath>` +
-    `</text>` +
-    `<text fill="#c8102e" font-family="Times, 'Times New Roman', serif" font-size="8.5" font-weight="700" letter-spacing="1">` +
-    `<textPath href="#seal-bottom-arc" startOffset="50%" text-anchor="middle">BUILDERS MARKETPLACE</textPath>` +
+    `<text fill="#ffffff" font-family="Times, 'Times New Roman', serif" font-size="12" font-weight="700" letter-spacing="1">` +
+    `<textPath href="#seal-top-arc" startOffset="50%" text-anchor="middle">BUILDERS MARKETPLACE</textPath>` +
     `</text>` +
     `</svg>`
   );
@@ -173,11 +165,15 @@ async function overlayTexture(edge: number, mirror: boolean): Promise<THREE.Canv
   return tex;
 }
 
-async function buildCoin(container: HTMLElement): Promise<() => void> {
+async function buildCoin(container: HTMLElement, shouldSpin: () => boolean): Promise<() => void> {
   // Paint the two overlays first: they are the only async work (SVG decode), and nothing three.js
   // has been allocated yet, so a failed decode simply leaves the flat SVG fallback in place.
+  // The back face's group carries rotation.y = PI (see addFace) and the camera sees it from +Z, so
+  // the mesh ITSELF reverses the drawing once. That single mesh mirror is exactly what a viewer
+  // needs to read the lettering normally, so both textures are drawn plain: pre-mirroring the back
+  // one added a second reversal and made it read "ЯƎꓭꓷꓵꓭ" (the Commander's rejected verdict).
   const overlayFront = await overlayTexture(512, false);
-  const overlayBack = await overlayTexture(512, true);
+  const overlayBack = await overlayTexture(512, false);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setClearColor(0x000000, 0);
@@ -264,6 +260,9 @@ async function buildCoin(container: HTMLElement): Promise<() => void> {
   scene.add(coin);
   container.replaceChildren();
   container.appendChild(renderer.domElement);
+  // Seed the rotation attribute so it exists the moment the coin is built: on a static page it
+  // stays "0" forever (proof it is not spinning), on a listing it grows frame by frame.
+  container.dataset.rotation = String(coin.rotation.y);
 
   let disposed = false;
   let raf = 0;
@@ -285,11 +284,15 @@ async function buildCoin(container: HTMLElement): Promise<() => void> {
 
   const animate = () => {
     if (disposed) return;
-    // Rotate around the local Y axis at a constant rate; the emblem is built as a coin so
-    // everything turns together. The angle is mirrored to a data attribute so a browser check
-    // can prove the coin is actually turning (monotonically increasing).
-    coin.rotation.y += 0.018;
-    container.dataset.rotation = String(coin.rotation.y);
+    // Spin the coin around its local Y axis only while the caller says to (a listing page); on a
+    // project page it holds still. The live angle is mirrored to a data attribute so a browser
+    // check can prove the coin is turning (monotonically increasing on the index, untouched
+    // everywhere else). Whether it is allowed to spin is the Seal component's concern, exposed as
+    // `data-spinning` on the container.
+    if (shouldSpin()) {
+      coin.rotation.y += 0.018;
+      container.dataset.rotation = String(coin.rotation.y);
+    }
     renderer.render(scene, camera);
     raf = requestAnimationFrame(animate);
   };
@@ -310,6 +313,15 @@ async function buildCoin(container: HTMLElement): Promise<() => void> {
 
 export function Seal() {
   const ref = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  // Keep the seal alive when a user clicks into a project: animate only while browsing the
+  // listing, and hold still on a project page or any other route. `usePathname` returns the
+  // pathname without the query string, so `/` also covers `/?page=5`. The layout keeps this
+  // component mounted across client navigations, so the coin must read the live answer every
+  // frame rather than capture it once; a ref carries it to the buildCoin callback.
+  const spinning = pathname === "/";
+  const shouldSpinRef = useRef(spinning);
+  shouldSpinRef.current = spinning;
 
   useEffect(() => {
     const el = ref.current;
@@ -329,7 +341,7 @@ export function Seal() {
     // If the effect unmounts first, cancel and dispose whatever landed.
     let cleanup: (() => void) | undefined;
     let cancelled = false;
-    buildCoin(el)
+    buildCoin(el, () => shouldSpinRef.current)
       .then((stop) => {
         if (cancelled) stop();
         else cleanup = stop;
@@ -344,7 +356,13 @@ export function Seal() {
   }, []);
 
   return (
-    <div ref={ref} className="seal" role="img" aria-label="Seal of the Builders Marketplace">
+    <div
+      ref={ref}
+      className="seal"
+      role="img"
+      aria-label="Seal of the Builders Marketplace"
+      data-spinning={spinning ? "true" : "false"}
+    >
       <FlatSeal />
     </div>
   );
