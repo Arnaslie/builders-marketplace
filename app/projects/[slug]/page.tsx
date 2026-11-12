@@ -6,7 +6,6 @@ import { ProjectShopping } from "../../../components/project-shopping";
 import { agGridLicenseKey } from "../../../lib/ag-grid-license";
 import { agChartsLicenseKey } from "../../../lib/ag-charts-license";
 import { getProject } from "../../../lib/api/client";
-import { isMockProject } from "../../../lib/mock/ids";
 
 // Next 15: route params arrive as a Promise.
 type Props = { params: Promise<{ slug: string }> };
@@ -25,11 +24,6 @@ export default async function ProjectPage({ params }: Props) {
   return (
     <main>
       <h1>{project.title}</h1>
-      {isMockProject(project.id) && (
-        <p className="sample-note">
-          <b>NOTE:</b> Sample project: placeholder materials and prices, not a real listing.
-        </p>
-      )}
       {/* Only a real picture is shown; a lettered placeholder would not belong on a 1994 page. */}
       {project.imageUrl && <ProjectImage title={project.title} imageUrl={project.imageUrl} />}
       <p>{project.summary}</p>

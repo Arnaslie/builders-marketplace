@@ -158,10 +158,6 @@ pre {
   font-size: 0.875em;
 }
 
-.sample-tag {
-  font-weight: 700;
-}
-
 /* Banner: a 236x40 image-like plate. Inside a link it gets the 1994 linked-image border, 2px
    in the link colour (purple once visited, exactly like border=2 on an <img>). */
 .banner {
@@ -268,10 +264,6 @@ a:visited .banner {
 }
 
 /* Project page */
-.sample-note {
-  margin: 0 0 var(--space-3);
-}
-
 .thumb {
   display: block;
   max-width: 100%;

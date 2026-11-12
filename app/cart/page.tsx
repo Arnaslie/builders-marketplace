@@ -4,7 +4,6 @@ import { PayPalCheckout } from "../../components/paypal-checkout";
 import { ApiError, getProject, priceCart, usingApi, type Cart } from "../../lib/api/client";
 import { cartRequestFromParams } from "../../lib/cart-link";
 import { formatMoney } from "../../lib/money";
-import { SAMPLE_CART_NOTE, isMockProject } from "../../lib/mock/ids";
 
 export const metadata = { title: "Cart | Builders Marketplace" };
 
@@ -35,7 +34,7 @@ export default async function CartPage({ searchParams }: Props) {
       <main>
         <h1>Cart</h1>
         <p>
-          <b>NOTE:</b> Checkout needs the API server. This copy of the site runs on sample data only
+          <b>NOTE:</b> Checkout needs the API server. This copy of the site runs on the bundled project files only
           (NEXT_PUBLIC_API_URL is not set), so the cart cannot be priced and PayPal is not offered.
         </p>
       </main>
@@ -44,21 +43,6 @@ export default async function CartPage({ searchParams }: Props) {
 
   const project = await getProject(slug);
   if (!project) notFound();
-
-  // Mocks have placeholder prices: no cart page, and PayPal must never be offered for one.
-  if (isMockProject(project.id)) {
-    return (
-      <main>
-        <h1>Cart</h1>
-        <p>
-          <b>NOTE:</b> {SAMPLE_CART_NOTE}
-        </p>
-        <p>
-          <Link href={`/projects/${project.slug}`}>Return to {project.title}</Link>
-        </p>
-      </main>
-    );
-  }
 
   const request = cartRequestFromParams(project.id, params);
   const invalidLink = (detail: string) => (

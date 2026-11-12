@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { formatMoney } from "../../lib/money";
 import { Banner } from "./banner";
-import { SampleBadge } from "./sample-badge";
 import type { ListingViewProps } from "./types";
 
 // The project index, laid out like the "Publications..." list on the 1994 CIA server page:
@@ -22,7 +21,6 @@ export function ProjectIndex({ projects, offset }: ListingViewProps) {
             <p className="index-particulars">
               Difficulty: {project.difficulty}. Time: {project.estimatedHours} hours. Items: {project.lineCount}.
               Estimated cost: about {formatMoney(project.estimatedTotal, project.currency)}.
-              <SampleBadge id={project.id} />
             </p>
           </li>
         );

@@ -22,8 +22,10 @@ def test_list_projects(client: TestClient) -> None:
     r = client.get("/projects")
     assert r.status_code == 200
     body = r.json()
-    assert [p["slug"] for p in body] == ["simple-wooden-chair", "forged-kitchen-knife", "wooden-squat-rack"]
-    chair = body[0]
+    # Listed in fixture file-name order (store.load_projects sorts the files).
+    fixtures = sorted((CONTRACT.parent / "fixtures").glob("*.json"))
+    assert [p["slug"] for p in body] == [json.loads(path.read_text())["slug"] for path in fixtures]
+    chair = next(p for p in body if p["id"] == CHAIR_ID)
     assert chair["lineCount"] == 12
     assert chair["estimatedTotal"] == "364.62"
     assert "materials" not in chair

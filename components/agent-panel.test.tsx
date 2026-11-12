@@ -98,11 +98,10 @@ describe("AgentPanelView", () => {
     expect(html).toContain("The shopping agent chose these swaps");
   });
 
-  it("result for a sample project: the cart shows, with no link to the cart page or PayPal", () => {
-    const html = view({ result: { cart, href: null } });
-    expect(html).toContain("Swapped Pro saw for Budget saw, saves $12.00");
-    expect(html).not.toContain("Go to the cart");
-    expect(view({ result: { cart, href: "/cart?project=chair" } })).toContain("Go to the cart and pay with PayPal");
+  it("result: every project links to its cart and PayPal", () => {
+    const html = view({ result: { cart, href: "/cart?project=floating-wall-shelf" } });
+    expect(html).toContain("Go to the cart and pay with PayPal");
+    expect(html).toContain('href="/cart?project=floating-wall-shelf"');
   });
 
   it("result without the agent: shows the swap but never a reason the model did not write", () => {

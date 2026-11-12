@@ -1,4 +1,4 @@
-"""Fill contract/prices.json with one Channel3 search per flagship material line (issues #11, #4).
+"""Fill contract/prices.json with one Channel3 search per fixture material line (issues #11, #4).
 
 Each search costs 1 Channel3 credit and the project has a fixed budget, so the script is built
 to be re-run safely:
@@ -41,9 +41,11 @@ from app.channel3 import Channel3AuthError, Channel3Client, Channel3Error, Offer
 from app.prices import DEFAULT_PRICES_FILE, PriceCache, PriceEntry, PriceMiss  # noqa: E402
 from app.store import DEFAULT_FIXTURES_DIR, load_projects  # noqa: E402
 
-FLAGSHIPS = ("proj-chair", "proj-squat-rack", "proj-knife")
 MAX_PRICE = Decimal("9999999.99")  # the contract Price pattern allows 7 integer digits
-SUSPECT_RATIO = 4  # warn when a match is 4x above or below the fixture's hand-entered price
+# A match more than this many times above or below the fixture's authored price is almost always a
+# different product (a mortar mixer for "mortar", a LEGO brick for "bricks"). It is recorded as a
+# miss, so the line keeps its authored price. --max-ratio 0 turns the guard off.
+SUSPECT_RATIO = 4
 
 
 class Searcher(Protocol):
@@ -109,7 +111,14 @@ def plan(
 def run(args: argparse.Namespace, make_client: Callable[[], Searcher]) -> int:
     out: Path = args.out
     cache = PriceCache.load(out)
-    projects = set(args.project or FLAGSHIPS)
+    if args.reject_file:
+        return reject(args, cache)
+    known = {p.id for p in load_projects(args.fixtures)}
+    unknown = set(args.project or []) - known
+    if unknown:
+        print(f"unknown project id(s): {sorted(unknown)}", file=sys.stderr)
+        return 2
+    projects = set(args.project or known)
     jobs, skipped = plan(args.fixtures, args.queries, cache, projects, set(args.line or []), args.refresh)
     unique = list(dict.fromkeys(job.query for job in jobs))
 
@@ -127,7 +136,7 @@ def run(args: argparse.Namespace, make_client: Callable[[], Searcher]) -> int:
 
     client = make_client()
     results: dict[str, list[Product] | Exception] = {}
-    priced = missed = failed = 0
+    priced = missed = failed = suspect = 0
     for job in jobs:
         if job.query not in results:
             try:
@@ -157,30 +166,68 @@ def run(args: argparse.Namespace, make_client: Callable[[], Searcher]) -> int:
         else:
             product, offer = best
             price = str(offer.price.quantize(CENT))
-            cache.put(job.project_id, job.line_id, PriceEntry(
-                channel3_product_id=product.id, title=product.title, price=price, currency=offer.currency,
-                retailer=retailer_name(offer.domain), url=offer.url, image_url=product.image_url,
-                fetched_at=now, query=job.query,
-            ))
-            priced += 1
             fixture = Decimal(job.fixture_price)
             ratio = Decimal(price) / fixture if fixture else Decimal(SUSPECT_RATIO + 1)
-            flag = "" if Decimal(1) / SUSPECT_RATIO <= ratio <= SUSPECT_RATIO else "  CHECK: far from fixture price"
-            print(f"  priced  {job.line_id}: {price} {offer.currency} at {retailer_name(offer.domain)} "
-                  f"(fixture {job.fixture_price}) {product.title!r}{flag}")
+            limit = args.max_ratio
+            if limit and not Decimal(1) / limit <= ratio <= limit:
+                suspect += 1
+                cache.put_miss(job.project_id, job.line_id, PriceMiss(
+                    query=job.query, fetched_at=now,
+                    reason=f"suspect match {product.title!r} at {price} {offer.currency} is {ratio:.2f}x "
+                           f"the fixture price {job.fixture_price}",
+                ))
+                print(f"  suspect {job.line_id}: {price} {offer.currency} {product.title!r} "
+                      f"is {ratio:.2f}x fixture {job.fixture_price}; kept fixture price")
+            else:
+                cache.put(job.project_id, job.line_id, PriceEntry(
+                    channel3_product_id=product.id, title=product.title, price=price, currency=offer.currency,
+                    retailer=retailer_name(offer.domain), url=offer.url, image_url=product.image_url,
+                    fetched_at=now, query=job.query,
+                ))
+                priced += 1
+                print(f"  priced  {job.line_id}: {price} {offer.currency} at {retailer_name(offer.domain)} "
+                      f"(fixture {job.fixture_price}) {product.title!r}")
         cache.save(out)
 
-    print(f"done: {priced} priced, {missed} miss(es), {failed} failed, {len(results)} call(s) made; wrote {out}")
+    print(f"done: {priced} priced, {missed} miss(es), {suspect} suspect, {failed} failed, "
+          f"{len(results)} call(s) made; wrote {out}")
     return 1 if failed else 0
+
+
+def reject(args: argparse.Namespace, cache: PriceCache) -> int:
+    """Record reviewed wrong-product matches as misses, so those lines keep their fixture price.
+
+    The price guard only catches matches far off the authored price; a lumber crayon priced like
+    a 2x6 gets through. A reviewer lists those in a JSON file {lineId: reason}. No Channel3 calls.
+    """
+    reasons: dict[str, str] = json.loads(args.reject_file.read_text(encoding="utf-8"))
+    queries = json.loads(args.queries.read_text(encoding="utf-8"))
+    owner = {line.id: project.id for project in load_projects(args.fixtures) for line in project.materials}
+    unknown = sorted(set(reasons) - set(owner))
+    if unknown:
+        print(f"unknown line id(s) in {args.reject_file}: {unknown}", file=sys.stderr)
+        return 2
+    now = datetime.now(UTC).replace(microsecond=0)
+    for line_id, reason in reasons.items():
+        cache.put_miss(owner[line_id], line_id, PriceMiss(
+            query=queries[line_id], fetched_at=now, reason=f"rejected by review: {reason}",
+        ))
+    cache.save(args.out)
+    print(f"rejected {len(reasons)} line(s); wrote {args.out}")
+    return 0
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--dry-run", action="store_true", help="print the plan; no key needed, no calls, no write")
     parser.add_argument("--refresh", action="store_true", help="re-search lines that are already cached")
-    parser.add_argument("--project", action="append", choices=FLAGSHIPS, help="limit to a project (repeatable)")
+    parser.add_argument("--project", action="append", help="limit to a project id (repeatable); default: every fixture")
     parser.add_argument("--line", action="append", help="limit to a material line id (repeatable)")
     parser.add_argument("--max-calls", type=int, default=60, help="refuse to run if more calls are needed")
+    parser.add_argument("--max-ratio", type=Decimal, default=Decimal(SUSPECT_RATIO),
+                        help="record a match this many times off the fixture price as a miss; 0 disables")
+    parser.add_argument("--reject-file", type=Path,
+                        help="JSON {lineId: reason}: record these reviewed wrong matches as misses, no calls")
     parser.add_argument("--out", type=Path, default=DEFAULT_PRICES_FILE)
     parser.add_argument("--queries", type=Path, default=DEFAULT_QUERIES)
     parser.add_argument("--fixtures", type=Path, default=DEFAULT_FIXTURES_DIR)
