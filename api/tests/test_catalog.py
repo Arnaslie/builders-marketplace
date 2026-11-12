@@ -12,7 +12,6 @@ from fastapi.testclient import TestClient
 
 FIXTURES = sorted((Path(__file__).resolve().parents[2] / "contract" / "fixtures").glob("*.json"))
 PROJECTS = [json.loads(path.read_text()) for path in FIXTURES]
-FORMER_SAMPLE = next(p for p in PROJECTS if p["slug"] == "floating-wall-shelf")
 
 
 def test_every_fixture_is_listed(client: TestClient) -> None:
@@ -32,10 +31,12 @@ def test_every_project_is_served_by_slug(client: TestClient, project: dict) -> N
     assert res.json()["id"] == project["id"]
 
 
-def test_a_former_sample_checks_out(client: TestClient, fake_paypal) -> None:
-    body = {"projectId": FORMER_SAMPLE["id"], "owned": []}
+@pytest.mark.parametrize("project", PROJECTS, ids=lambda p: p["slug"])
+def test_every_project_checks_out(client: TestClient, fake_paypal, project: dict) -> None:
+    body = {"projectId": project["id"], "owned": []}
     priced = client.post("/cart", json=body)
     assert priced.status_code == 200
+    assert priced.json()["subtotal"] != "0.00"
 
     res = client.post("/checkout/orders", json=body)
     assert res.status_code == 201
