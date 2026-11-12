@@ -9,8 +9,11 @@
 // it around its vertical axis. The navy ring, gold band and gold outlines are real
 // `MeshStandardMaterial` meshes under an environment map, so they catch light and read metallic;
 // the lettering, hammer, shield and compass star are painted into a transparent canvas texture
-// laid over the metal. On a server render (or a browser without WebGL) a flat, white-backed SVG
-// is shown instead, so the masthead never flashes empty and crawlers still see the seal.
+// laid over the metal. The two ring labels are rasterized from the SAME `<textPath>` SVG the flat
+// fallback uses, so the browser lays them out identically (correct arc, un-mirrored on the front).
+// The coin body is a flat cylinder whose circular face turns toward the camera, so it reads as a
+// coin with a thin edge instead of a blue bar. On a server render (or a browser without WebGL)
+// the flat, white-backed SVG is shown instead, so the masthead never flashes empty.
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -82,12 +85,42 @@ function FlatSeal() {
   );
 }
 
-// The painted overlay: only the lettering, hammer, shield and compass star. Everything else stays
-// transparent so the metallic ring meshes underneath show through. Drawn in the SVG's 150-unit
-// design space, so coordinates match the mesh radii one-to-one. `mirror` flips the drawing for the
-// back face (a physical coin flipped around its vertical axis reads correctly only when its text
-// is pre-mirrored).
-function overlayTexture(edge: number, mirror: boolean): THREE.CanvasTexture {
+// The two ring labels, as an SVG fragment. These are byte-for-byte the same <textPath> elements
+// as FlatSeal, which is the single source of truth for how the front face must read. Hand-placing
+// the glyphs in canvas 2D is too easy to get subtly wrong (arc direction, letter spacing, glyph
+// rotation) — rasterizing the browser's own layout stays correct on every platform.
+function ringLabelsSvg(): string {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="150" height="150" viewBox="0 0 150 150">` +
+    `<defs>` +
+    `<path id="seal-top-arc" d="M 15 75 A 60 60 0 0 1 135 75"/>` +
+    `<path id="seal-bottom-arc" d="M 12.04 97.92 A 67 67 0 0 0 137.96 97.92"/>` +
+    `</defs>` +
+    `<text fill="#ffffff" font-family="Times, 'Times New Roman', serif" font-size="12" font-weight="700" letter-spacing="2">` +
+    `<textPath href="#seal-top-arc" startOffset="50%" text-anchor="middle">BUILDERS</textPath>` +
+    `</text>` +
+    `<text fill="#c8102e" font-family="Times, 'Times New Roman', serif" font-size="8.5" font-weight="700" letter-spacing="1">` +
+    `<textPath href="#seal-bottom-arc" startOffset="50%" text-anchor="middle">BUILDERS MARKETPLACE</textPath>` +
+    `</text>` +
+    `</svg>`
+  );
+}
+
+function loadSvg(svg: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("seal ring-label SVG failed to load"));
+    img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  });
+}
+
+// The painted overlay: the ring lettering (rasterized from FlatSeal) plus the hammer, shield and
+// compass star drawn in canvas 2D. Everything else stays transparent so the metallic ring meshes
+// underneath show through. Drawn in the SVG's 150-unit design space, so coordinates match the mesh
+// radii one-to-one. `mirror` flips the drawing for the back face (a coin flipped around its
+// vertical axis reads correctly only when its text is pre-mirrored).
+async function overlayTexture(edge: number, mirror: boolean): Promise<THREE.CanvasTexture> {
   const c = document.createElement("canvas");
   c.width = c.height = edge;
   const g = c.getContext("2d")!;
@@ -97,33 +130,9 @@ function overlayTexture(edge: number, mirror: boolean): THREE.CanvasTexture {
     g.scale(-1, 1);
   }
 
-  // Top lettering: white "BUILDERS" growing outward from radius 60.
-  g.fillStyle = "#ffffff";
-  g.font = '700 12px Times, "Times New Roman", serif';
-  g.textAlign = "center";
-  g.textBaseline = "middle";
-  const top = "BUILDERS";
-  for (let i = 0; i < top.length; i += 1) {
-    const a = Math.PI - ((i - (top.length - 1) / 2) / 12) * Math.PI * 0.9;
-    g.save();
-    g.translate(75 + 60 * Math.cos(a), 75 - 60 * Math.sin(a));
-    g.rotate(-a);
-    g.fillText(top[i], 0, 0);
-    g.restore();
-  }
-
-  // Bottom lettering: red "BUILDERS MARKETPLACE" growing inward from radius 67.
-  g.fillStyle = RED;
-  g.font = '700 8.5px Times, "Times New Roman", serif';
-  const bottom = "BUILDERS MARKETPLACE";
-  for (let i = 0; i < bottom.length; i += 1) {
-    const a = Math.PI + ((i - (bottom.length - 1) / 2) / 14) * Math.PI * 0.5;
-    g.save();
-    g.translate(75 + 67 * Math.cos(a), 75 - 67 * Math.sin(a));
-    g.rotate(-a);
-    g.fillText(bottom[i], 0, 0);
-    g.restore();
-  }
+  // Ring labels first, then the symmetric emblem art over them. Loading is async, so the caller
+  // lists this texture in the disposables it creates after the awaits resolve.
+  g.drawImage(await loadSvg(ringLabelsSvg()), 0, 0, 150, 150);
 
   // Hammer head and haft, centred above the shield.
   g.fillStyle = "#3a3a3a";
@@ -164,7 +173,12 @@ function overlayTexture(edge: number, mirror: boolean): THREE.CanvasTexture {
   return tex;
 }
 
-function buildCoin(container: HTMLElement): () => void {
+async function buildCoin(container: HTMLElement): Promise<() => void> {
+  // Paint the two overlays first: they are the only async work (SVG decode), and nothing three.js
+  // has been allocated yet, so a failed decode simply leaves the flat SVG fallback in place.
+  const overlayFront = await overlayTexture(512, false);
+  const overlayBack = await overlayTexture(512, true);
+
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setClearColor(0x000000, 0);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -179,10 +193,12 @@ function buildCoin(container: HTMLElement): () => void {
 
   // Shared resources; disposed together on unmount. The two faces reuse the same geometry and
   // materials, so the back is a true mirror of the front, not a second copy.
-  const disposables: Array<{ dispose(): void }> = [];
+  const disposables: Array<{ dispose(): void }> = [overlayFront, overlayBack];
   const track = <T extends { dispose(): void }>(d: T): T => (disposables.push(d), d);
 
-  const bodyGeom = track(new THREE.CylinderGeometry(72, 72, 6, 96));
+  // Height 5 (not 6): after rotating flat, the circular caps land at z = ±2.5, just inside the
+  // ring meshes at z = ±3, so the navy body and navy ring never share a plane (no z-fighting).
+  const bodyGeom = track(new THREE.CylinderGeometry(72, 72, 5, 96));
   const ringGeom = track(new THREE.RingGeometry(52, 72, 96));
   const discGeom = track(new THREE.CircleGeometry(52, 96));
   const bandGeom = track(new THREE.RingGeometry(52, 70, 96, 1, 200 * DEG, 140 * DEG));
@@ -193,8 +209,6 @@ function buildCoin(container: HTMLElement): () => void {
   const navyMat = track(new THREE.MeshStandardMaterial({ color: NAVY, metalness: 0.55, roughness: 0.3 }));
   const goldMat = track(new THREE.MeshStandardMaterial({ color: GOLD, metalness: 0.95, roughness: 0.18 }));
   const whiteMat = track(new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.15, roughness: 0.4 }));
-  const overlayFront = track(overlayTexture(512, false));
-  const overlayBack = track(overlayTexture(512, true));
   const overlayMatFront = track(
     new THREE.MeshStandardMaterial({ color: 0xffffff, map: overlayFront, transparent: true, metalness: 0.1, roughness: 0.5 }),
   );
@@ -204,8 +218,12 @@ function buildCoin(container: HTMLElement): () => void {
 
   const coin = new THREE.Group();
 
-  // Solid navy body gives the coin a visible edge while it turns.
-  coin.add(new THREE.Mesh(bodyGeom, navyMat));
+  // Solid navy body gives the coin a visible edge while it turns. CylinderGeometry's axis is Y,
+  // so flat it around X to point the circular face at the camera: face-on it fills the ring's
+  // centre, edge-on only its 6-unit rim shows (no more navy bar across the middle).
+  const body = new THREE.Mesh(bodyGeom, navyMat);
+  body.rotation.x = Math.PI / 2;
+  coin.add(body);
 
   // One face assembly, layered back-to-front: navy ring, white field, gold 140-degree band,
   // thin gold outlines, then the painted lettering/shield overlay on top.
@@ -244,6 +262,7 @@ function buildCoin(container: HTMLElement): () => void {
   pmrem.dispose();
 
   scene.add(coin);
+  container.replaceChildren();
   container.appendChild(renderer.domElement);
 
   let disposed = false;
@@ -306,8 +325,22 @@ export function Seal() {
     })();
     if (!hasWebGL) return;
 
-    el.replaceChildren();
-    return buildCoin(el);
+    // buildCoin is async only because of the SVG decode; until it resolves the flat SVG stays put.
+    // If the effect unmounts first, cancel and dispose whatever landed.
+    let cleanup: (() => void) | undefined;
+    let cancelled = false;
+    buildCoin(el)
+      .then((stop) => {
+        if (cancelled) stop();
+        else cleanup = stop;
+      })
+      .catch(() => {
+        /* keep the flat SVG fallback */
+      });
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
   }, []);
 
   return (
