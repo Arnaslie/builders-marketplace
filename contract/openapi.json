@@ -103,7 +103,7 @@
           "projects"
         ],
         "summary": "Create Recommendation",
-        "description": "Draft a project from an idea: the LLM lists the materials, prices come only from the cache.\n\nLines with no cache match are returned unpriced (null prices) and left out of the total. The\ndraft is kept in memory (lost on restart) and is never listed by GET /projects.",
+        "description": "Draft a project from an idea: the LLM lists the materials, prices come from the cache, and a\ncache miss is priced with a live Channel3 search (capped and memoized in-process). Lines with no\nmatch — or when Channel3 is unavailable — are returned unpriced (null prices) and left out of\nthe total. The draft is kept in memory (lost on restart) and never listed by GET /projects.",
         "operationId": "createRecommendation",
         "requestBody": {
           "content": {

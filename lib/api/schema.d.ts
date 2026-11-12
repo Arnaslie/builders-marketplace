@@ -66,10 +66,10 @@ export interface paths {
         put?: never;
         /**
          * Create Recommendation
-         * @description Draft a project from an idea: the LLM lists the materials, prices come only from the cache.
-         *
-         *     Lines with no cache match are returned unpriced (null prices) and left out of the total. The
-         *     draft is kept in memory (lost on restart) and is never listed by GET /projects.
+         * @description Draft a project from an idea: the LLM lists the materials, prices come from the cache, and a
+         *     cache miss is priced with a live Channel3 search (capped and memoized in-process). Lines with no
+         *     match — or when Channel3 is unavailable — are returned unpriced (null prices) and left out of
+         *     the total. The draft is kept in memory (lost on restart) and never listed by GET /projects.
          */
         post: operations["createRecommendation"];
         delete?: never;

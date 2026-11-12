@@ -23,7 +23,7 @@ Channel3 ranks by relevance, so relevance wins over price across products.
 import argparse
 import json
 import sys
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -37,11 +37,19 @@ DEFAULT_QUERIES = CONTRACT / "channel3-queries.json"
 sys.path.insert(0, str(API_DIR))  # so "app" imports when run as scripts/price_cache.py
 
 from app.cart import CENT  # noqa: E402
-from app.channel3 import Channel3AuthError, Channel3Client, Channel3Error, Offer, Product  # noqa: E402
+from app.channel3 import (  # noqa: E402
+    MAX_PRICE,
+    Channel3AuthError,
+    Channel3Client,
+    Channel3Error,
+    Offer,
+    Product,
+    pick_best,
+    retailer_name,
+)
 from app.prices import DEFAULT_PRICES_FILE, PriceCache, PriceEntry, PriceMiss  # noqa: E402
 from app.store import DEFAULT_FIXTURES_DIR, load_projects  # noqa: E402
 
-MAX_PRICE = Decimal("9999999.99")  # the contract Price pattern allows 7 integer digits
 # A match more than this many times above or below the fixture's authored price is almost always a
 # different product (a mortar mixer for "mortar", a LEGO brick for "bricks"). It is recorded as a
 # miss, so the line keeps its authored price. --max-ratio 0 turns the guard off.
@@ -61,27 +69,6 @@ class Job:
     query: str
     currency: str
     fixture_price: str
-
-
-def pick_best(products: Iterable[Product], currency: str) -> tuple[Product, Offer] | None:
-    for product in products:
-        usable = [
-            offer
-            for offer in product.offers
-            if offer.currency == currency
-            and offer.availability == "InStock"
-            and offer.condition in (None, "new")
-            and Decimal("0") < offer.price <= MAX_PRICE
-            and offer.url.lower().startswith(("https://", "http://"))
-        ]
-        if usable:
-            return product, min(usable, key=lambda o: (o.price, o.domain))
-    return None
-
-
-def retailer_name(domain: str) -> str:
-    domain = domain.strip().lower()
-    return domain.removeprefix("www.") or "unknown retailer"
 
 
 def plan(

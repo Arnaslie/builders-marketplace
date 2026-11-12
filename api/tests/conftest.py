@@ -33,3 +33,7 @@ def no_llm_key(monkeypatch: pytest.MonkeyPatch) -> None:
     # No test may reach the real Anthropic API, even when LLM_API_KEY is set in the shell.
     monkeypatch.delenv("LLM_API_KEY", raising=False)
     monkeypatch.delenv("LLM_MODEL", raising=False)
+
+    # Same for Channel3: with no key the request path must degrade to unpriced lines (the highest-
+    # risk path). A test that wants the live path swaps in its own CHANNEL3_API_KEY / pricer.
+    monkeypatch.delenv("CHANNEL3_API_KEY", raising=False)

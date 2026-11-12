@@ -29,7 +29,7 @@ import logging
 import os
 import urllib.error
 import urllib.request
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -41,6 +41,7 @@ SEARCH_PATH = "/v1/search"
 ENV_KEY = "CHANNEL3_API_KEY"
 DEFAULT_TIMEOUT = 20.0  # seconds; search p50 is ~800 ms per trychannel3.com/developers
 MAX_LIMIT = 30  # documented maximum for SearchRequest.limit
+MAX_PRICE = Decimal("9999999.99")  # the contract Price pattern allows 7 integer digits
 USER_AGENT = "builders-marketplace-api/0.1 (+https://github.com/Arnaslie/builders-marketplace)"
 
 # send(request, timeout) -> (status code, response body). HTTP errors are returned, not raised.
@@ -132,6 +133,35 @@ def parse_search_response(payload: dict[str, Any]) -> list[Product]:
             Product(id=raw["id"], title=raw["title"], image_url=_image_url(raw.get("images") or []), offers=offers)
         )
     return products
+
+
+def pick_best(products: Iterable[Product], currency: str) -> tuple[Product, Offer] | None:
+    """The highest-ranked product with a usable offer, and that product's cheapest such offer.
+
+    Channel3 ranks by relevance, so relevance wins over price across products. "Usable" means in
+    stock, new or unknown condition, the requested currency, a plausible price, and an http(s)
+    link. Shared by scripts/price_cache.py and the live request-path pricer (app/drafts.py) so a
+    draft is priced exactly the way the committed cache was built.
+    """
+    for product in products:
+        usable = [
+            offer
+            for offer in product.offers
+            if offer.currency == currency
+            and offer.availability == "InStock"
+            and offer.condition in (None, "new")
+            and Decimal("0") < offer.price <= MAX_PRICE
+            and offer.url.lower().startswith(("https://", "http://"))
+        ]
+        if usable:
+            return product, min(usable, key=lambda o: (o.price, o.domain))
+    return None
+
+
+def retailer_name(domain: str) -> str:
+    """An offer's retailer as a bare domain (no www.), for grid display."""
+    domain = domain.strip().lower()
+    return domain.removeprefix("www.") or "unknown retailer"
 
 
 class Channel3Client:

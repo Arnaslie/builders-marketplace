@@ -27,7 +27,7 @@ from .cart import (
     money,
     project_total,
 )
-from .drafts import DraftError, candidates, draft_lines, price_lines
+from .drafts import DraftError, LiveChannel3Pricer, candidates, draft_lines, price_lines_with_live
 from .models import (
     BuildCartRequest,
     Cart,
@@ -163,16 +163,16 @@ def get_project(slug: str, store: Store) -> Project:
     operation_id="createRecommendation",
 )
 def create_recommendation(body: RecommendationRequest, request: Request, drafts: Drafts) -> Recommendation:
-    """Draft a project from an idea: the LLM lists the materials, prices come only from the cache.
-
-    Lines with no cache match are returned unpriced (null prices) and left out of the total. The
-    draft is kept in memory (lost on restart) and is never listed by GET /projects.
+    """Draft a project from an idea: the LLM lists the materials, prices come from the cache, and a
+    cache miss is priced with a live Channel3 search (capped and memoized in-process). Lines with no
+    match — or when Channel3 is unavailable — are returned unpriced (null prices) and left out of
+    the total. The draft is kept in memory (lost on restart) and never listed by GET /projects.
     """
     try:
         lines = draft_lines(body)
     except DraftError as exc:
         raise HTTPException(exc.status_code, exc.detail) from None
-    materials, total = price_lines(lines, request.app.state.price_candidates)
+    materials, total = price_lines_with_live(lines, request.app.state.price_candidates, request.app.state.live_pricer)
     priced = sum(1 for m in materials if m.priced)
     draft = Recommendation(
         id=f"rec_{secrets.token_hex(6)}",
@@ -459,6 +459,9 @@ def create_app(cors_origins: list[str] | None = None, fixtures: Path | None = No
     cache_file = prices_path()
     cache = PriceCache.load(cache_file) if cache_file is not None else PriceCache()
     app.state.price_candidates = candidates(app.state.store.projects(), cache)
+    # Live Channel3 pricing for draft cache-misses (sponsor-prize requirement): never raises, so
+    # with CHANNEL3_API_KEY unset every request still succeeds — lines just stay unpriced.
+    app.state.live_pricer = LiveChannel3Pricer()
     # None when PAYPAL_CLIENT_ID/SECRET are unset: checkout routes then answer 503. Tests replace it.
     app.state.paypal = PayPalClient.from_env()
     app.add_middleware(

@@ -2,23 +2,29 @@
 
 Division of labour, as in app/agent.py: the model only proposes WHAT is needed (name, qty, unit,
 category). Every price comes from the committed Channel3 cache (contract/prices.json) by matching
-the drafted name to a cached line. A line with no confident match stays unpriced (all price fields
-null) and adds nothing to the estimated total. Nothing the model writes is ever used as a price.
+the drafted name to a cached line; a cache miss is priced from a live Channel3 search (one credit
+per search, capped per request and memoized in-process). A line with no confident match stays
+unpriced (all price fields null) and adds nothing to the estimated total. Nothing the model writes
+is ever used as a price.
 
 Failures are HTTP errors, never tracebacks: 503 when no LLM key is configured, 502 when the model
-call fails or returns nothing usable.
+call fails or returns nothing usable. A Channel3 failure is never one of them: pricing degrades to
+the unpriced line rather than a 500.
 """
 
 import logging
 import os
 import re
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, Callable
 
 from pydantic import ValidationError
 
 from . import agent
+from .cart import CENT
+from .channel3 import Channel3AuthError, Channel3Client, Channel3Error, Offer, Product, pick_best, retailer_name
 from .models import DraftLine, DraftMaterial, Project, RecommendationRequest
 from .prices import PriceCache, PriceEntry
 
@@ -28,6 +34,8 @@ MAX_LINES = 30
 PRICED_CURRENCY = "USD"  # checkout currency; cache entries in another currency are never matched
 MATCH_THRESHOLD = 0.6  # Jaccard overlap of name words; below it the line stays unpriced
 MAX_TOKENS = 2048
+LIVE_SEARCH_LIMIT = 3  # Channel3 results to fetch when the committed cache misses a line
+MAX_LIVE_CALLS = 5  # live Channel3 searches per request (one credit each); over it, lines stay unpriced
 
 SYSTEM = (
     "You draft the materials-and-tools list for a DIY project idea on a build-it-yourself site. "
@@ -221,3 +229,121 @@ def price_lines(lines: list[DraftLine], pool: list[Candidate]) -> tuple[list[Dra
             )
         )
     return out, total
+
+
+# --- Live Channel3 pricing (sponsor-prize requirement: a real call on a live request path) ---
+
+
+def _live_entry(query: str, product: Product, offer: Offer, now: datetime) -> PriceEntry:
+    """A request-time Channel3 offer as a PriceEntry, shaped exactly like the committed cache's."""
+    return PriceEntry(
+        channel3_product_id=product.id, title=product.title,
+        price=str(offer.price.quantize(CENT)), currency=offer.currency,
+        retailer=retailer_name(offer.domain), url=offer.url, image_url=product.image_url,
+        fetched_at=now, query=query,
+    )
+
+
+class LiveChannel3Pricer:
+    """Prices a single drafted line from a live Channel3 search, never raising.
+
+    The sponsor rules only reward projects that actually call the Channel3 API on a live request
+    path, so drafting a project from an idea pays one credit (one /v1/search) per line the
+    committed cache misses, up to ``max_calls`` attempts. Both results and failures are memoized
+    in-process by query so a repeated line never spends again, and the cap counts attempts rather
+    than successes — a failing Channel3 cannot cost one search per draft line. Any Channel3
+    failure (no key, bad key, exhausted credits, timeout, 5xx) degrades to the unpriced line: the
+    caller returns 201 exactly as before. The first failure is logged once so a misconfigured key
+    is visible without flooding the log.
+    """
+
+    def __init__(
+        self,
+        *,
+        search_limit: int = LIVE_SEARCH_LIMIT,
+        max_calls: int = MAX_LIVE_CALLS,
+        build: Callable[[], Channel3Client] | None = None,
+    ) -> None:
+        self._search_limit = search_limit
+        self._max_calls = max_calls
+        self._build = build or Channel3Client.from_env
+        self._results: dict[str, list[Any] | Exception] = {}
+        self._attempts = 0
+        self._logged: set[tuple[str, ...]] = set()
+
+    def price_line(self, line: DraftLine) -> PriceEntry | None:
+        """Live-price one uncached line, or None when Channel3 is unavailable or finds nothing."""
+        query = line.name.strip()
+        if not query:
+            return None
+        if query in self._results:
+            return self._best_entry(query, self._results[query])
+        if self._attempts >= self._max_calls:
+            return None  # the cap counts attempts, not results: a failing Channel3 must not run away
+        self._attempts += 1
+        try:
+            client = self._build()
+        except Channel3Error as exc:
+            # No key (or a malformed one) is a configuration problem, not a per-line one.
+            self._once(("auth",), exc)
+            self._results[query] = exc
+            return None
+        try:
+            products = client.search(query, limit=self._search_limit)
+        except Exception as exc:
+            # AuthError (bad key / out of credits) is the permanent-degrade case; any other
+            # Channel3Error or unexpected failure degrades for this request too. Recorded like a
+            # result, so a failing line is attempted once rather than once per draft line.
+            kind = ("auth",) if isinstance(exc, Channel3AuthError) else ("failure",)
+            self._once(kind, exc)
+            self._results[query] = exc
+            return None
+        # Memoize by query regardless of outcome so the same line costs one credit per process.
+        self._results[query] = products
+        return self._best_entry(query, products)
+
+    def _best_entry(self, query: str, products: list[Any] | Exception) -> PriceEntry | None:
+        """The best usable USD offer for a query's results, or None (unpriced)."""
+        if isinstance(products, Exception):
+            return None
+        best = pick_best(products, PRICED_CURRENCY)
+        if best is None:
+            return None
+        product, offer = best
+        if offer.currency != PRICED_CURRENCY:
+            return None  # a non-USD offer must never price the line (invariant in match_price)
+        return _live_entry(query, product, offer, datetime.now(UTC).replace(microsecond=0))
+
+    def _once(self, kind: tuple[str, ...], exc: Exception) -> None:
+        if kind in self._logged:
+            return
+        self._logged.add(kind)
+        log.warning("channel3 live pricing degraded (%s): %s", kind[0], exc)
+
+
+def price_lines_with_live(
+    lines: list[DraftLine],
+    pool: list[Candidate],
+    live: LiveChannel3Pricer,
+) -> tuple[list[DraftMaterial], Decimal]:
+    """price_lines, then live-price each cache miss from a real Channel3 search.
+
+    Cache-first so the committed file still costs nothing and drives the common case; only lines
+    the cache cannot match reach the live API, capped and memoized. Unpriced lines behave exactly
+    as today: null prices, excluded from the total. A live failure leaves them unpriced.
+    """
+    materials, total = price_lines(lines, pool)
+    for index, (line, entry) in enumerate(zip(lines, materials, strict=True)):
+        if entry.priced:
+            continue  # cache already priced it; never spend a credit
+        live_entry = live.price_line(line)
+        if live_entry is None:
+            continue  # stays unpriced exactly as before
+        materials[index] = DraftMaterial(
+            name=line.name, qty=line.qty, unit=line.unit, category=line.category, priced=True,
+            unit_price=live_entry.price, line_total=f"{Decimal(live_entry.price) * line.qty:.2f}",
+            currency=live_entry.currency, retailer=live_entry.retailer, product_url=live_entry.url,
+            image_url=live_entry.image_url, channel3_product_id=live_entry.channel3_product_id,
+        )
+        total += Decimal(live_entry.price) * line.qty
+    return materials, total
