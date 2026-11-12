@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from app.main import create_app
+from tests.fake_paypal import FakePayPal
 
 FRONTEND = "http://localhost:3000"  # same origin conftest.client allows
 
@@ -111,6 +112,63 @@ def test_checkout_create_and_capture(client: TestClient) -> None:
 def test_checkout_empty_cart_422(client: TestClient) -> None:
     owned_all = [m["id"] for m in client.get("/projects/forged-kitchen-knife").json()["materials"]]
     r = client.post("/checkout/orders", json={"projectId": "proj-knife", "owned": owned_all})
+    assert r.status_code == 422
+
+
+def test_create_order_replays_once_per_idempotency_key(
+    client: TestClient, fake_paypal: FakePayPal
+) -> None:
+    """A double-clicked Pay button opens one PayPal order, not two payable ones."""
+    body = {"projectId": CHAIR_ID, "owned": CHAIR_OWNED_DEFAULT}
+    headers = {"Idempotency-Key": "submit-abc123"}
+
+    first = client.post("/checkout/orders", json=body, headers=headers)
+    second = client.post("/checkout/orders", json=body, headers=headers)
+
+    assert first.status_code == second.status_code == 201
+    assert first.json()["id"] == second.json()["id"]
+    assert first.json() == second.json()
+    # Only one order ever reached PayPal; the second was answered from our replay record.
+    assert len(fake_paypal.calls("create")) == 1
+
+
+def test_create_order_replays_after_a_lost_response(client: TestClient, fake_paypal: FakePayPal) -> None:
+    """A submit whose response was lost retries and lands on the same order, not a second one."""
+    body = {"projectId": CHAIR_ID, "owned": CHAIR_OWNED_DEFAULT}
+    headers = {"Idempotency-Key": "submit-lost"}
+
+    first = client.post("/checkout/orders", json=body, headers=headers)
+    assert first.status_code == 201
+    # Forget our replay record but keep PayPal's: the retry must still find the one order.
+    client.app.state.request_orders.clear()
+    retried = client.post("/checkout/orders", json=body, headers=headers)
+    assert retried.status_code == 201
+    # PayPal-Request-Id made PayPal replay, so the caller sees the original order either way.
+    assert len(fake_paypal.calls("create")) == 2
+    sent = [r.headers["PayPal-Request-Id"] for r in fake_paypal.calls("create")]
+    assert all(key.startswith("create-ord_") for key in sent)
+
+
+def test_create_order_without_key_creates_distinct_orders(client: TestClient, fake_paypal: FakePayPal) -> None:
+    """No key means nothing to replay against: two submits are two deliberate orders."""
+    body = {"projectId": CHAIR_ID, "owned": CHAIR_OWNED_DEFAULT}
+    a = client.post("/checkout/orders", json=body)
+    b = client.post("/checkout/orders", json=body)
+    assert a.status_code == b.status_code == 201
+    assert a.json()["id"] != b.json()["id"]
+    assert len(fake_paypal.calls("create")) == 2
+
+
+def test_create_order_different_keys_are_different_orders(client: TestClient) -> None:
+    body = {"projectId": CHAIR_ID, "owned": CHAIR_OWNED_DEFAULT}
+    a = client.post("/checkout/orders", json=body, headers={"Idempotency-Key": "one"})
+    b = client.post("/checkout/orders", json=body, headers={"Idempotency-Key": "two"})
+    assert a.json()["id"] != b.json()["id"]
+
+
+def test_create_order_rejects_oversized_idempotency_key(client: TestClient) -> None:
+    body = {"projectId": CHAIR_ID, "owned": CHAIR_OWNED_DEFAULT}
+    r = client.post("/checkout/orders", json=body, headers={"Idempotency-Key": "x" * 129})
     assert r.status_code == 422
 
 

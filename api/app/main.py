@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, Depends, FastAPI, HTTPException, Request, status
+from fastapi import APIRouter, Body, Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from .agent import build_agent_cart
@@ -74,12 +74,18 @@ def get_orders(request: Request) -> dict[str, Order]:
     return request.app.state.orders
 
 
+def get_request_orders(request: Request) -> dict[str, Order]:
+    """Idempotency-Key -> the order we opened for it. Memory only, like the orders themselves."""
+    return request.app.state.request_orders
+
+
 def get_drafts(request: Request) -> dict[str, Recommendation]:
     return request.app.state.drafts
 
 
 Store = Annotated[FixtureStore, Depends(get_store)]
 Orders = Annotated[dict[str, Order], Depends(get_orders)]
+RequestOrders = Annotated[dict[str, Order], Depends(get_request_orders)]
 Drafts = Annotated[dict[str, Recommendation], Depends(get_drafts)]
 DRAFT_CURRENCY = "USD"  # drafts are only priced from USD cache entries (app/drafts.py)
 
@@ -294,58 +300,19 @@ def get_checkout_config(paypal: PayPal) -> CheckoutConfig:
     return CheckoutConfig(client_id=paypal.config.client_id, currency=CHECKOUT_CURRENCY, env=paypal.config.env)
 
 
-@router.post(
-    "/checkout/orders",
-    response_model=PayPalOrder,
-    status_code=status.HTTP_201_CREATED,
-    responses={
-        **NOT_FOUND,
-        422: {"description": "Invalid body, unknown owned line id, invalid swap, or empty cart"},
-        502: {"description": "PayPal rejected the request or did not respond; no order was stored"},
-        503: {"description": "PayPal credentials are not set on the server"},
-    },
-    tags=["checkout"],
-    operation_id="createCheckoutOrder",
-)
-def create_checkout_order(body: CartRequest, store: Store, orders: Orders, paypal: PayPal) -> PayPalOrder:
-    """Create a PayPal order for the cart the server builds from this request.
+CREATE_IDEMPOTENCY_MAX = 128
+_create_lock = threading.Lock()
 
-    The client sends the same input as POST /cart, not prices: the server recomputes the cart
-    (re-checking any swaps), so a tampered browser cannot set its own total.
-    """
-    project = _project_or_404(store, body.project_id)
-    cart = _cart_or_422(project, body)
-    if not cart.lines:
-        raise HTTPException(UNPROCESSABLE, "cart is empty; nothing to pay for")
-    our_id = f"ord_{secrets.token_hex(6)}"
-    try:
-        created = paypal.create_order(cart, custom_id=our_id)
-    except (PayPalError, PayPalUnavailable) as exc:
-        raise _paypal_http_error(exc, "create order") from None
-    paypal_id, paypal_status, approve = created.get("id"), created.get("status"), approve_url(created)
-    if not isinstance(paypal_id, str) or paypal_status not in PAYPAL_CREATED_STATUSES or approve is None:
-        log.warning("paypal create order: unexpected response status=%s", paypal_status)
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "PayPal create order returned an unexpected response")
-    orders[paypal_id] = Order(
-        id=our_id,
-        paypal_order_id=paypal_id,
-        paypal_capture_id=None,
-        project_id=cart.project_id,
-        status="created",
-        fulfilment="simulated",
-        total=cart.subtotal,
-        currency=cart.currency,
-        lines=cart.lines,
-    )
-    log.info("paypal order created: paypal_id=%s order=%s total=%s %s", paypal_id, our_id, cart.subtotal, cart.currency)
+
+def _order_response(paypal_id: str, paypal_status: str, approve: str, order: Order) -> PayPalOrder:
     return PayPalOrder(
         id=paypal_id,
         intent="CAPTURE",
         status=paypal_status,
         purchase_units=[
             PayPalPurchaseUnit(
-                reference_id=cart.project_id,
-                amount=PayPalAmount(currency_code=cart.currency, value=cart.subtotal),
+                reference_id=order.project_id,
+                amount=PayPalAmount(currency_code=order.currency, value=order.total),
             )
         ],
         # PayPal's approve link, plus OUR capture route: PayPal's own capture link needs the
@@ -355,6 +322,89 @@ def create_checkout_order(body: CartRequest, store: Store, orders: Orders, paypa
             PayPalLink(href=f"/checkout/orders/{paypal_id}/capture", rel="capture", method="POST"),
         ],
     )
+
+
+def _replay(record: Order) -> PayPalOrder:
+    """The same PayPal order we already opened for this client submission. One order, one payment."""
+    assert record.paypal_order_id is not None
+    approve = record.approve_url or ""
+    return _order_response(record.paypal_order_id, record.paypal_status or "APPROVED", approve, record)
+
+
+@router.post(
+    "/checkout/orders",
+    response_model=PayPalOrder,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        **NOT_FOUND,
+        422: {"description": "Invalid body, unknown owned line id, invalid swap, empty cart, or bad Idempotency-Key"},
+        502: {"description": "PayPal rejected the request or did not respond; no order was stored"},
+        503: {"description": "PayPal credentials are not set on the server"},
+    },
+    tags=["checkout"],
+    operation_id="createCheckoutOrder",
+)
+def create_checkout_order(
+    body: CartRequest,
+    store: Store,
+    orders: Orders,
+    request_orders: RequestOrders,
+    paypal: PayPal,
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
+) -> PayPalOrder:
+    """Create a PayPal order for the cart the server builds from this request.
+
+    The client sends the same input as POST /cart, not prices: the server recomputes the cart
+    (re-checking any swaps), so a tampered browser cannot set its own total.
+
+    Idempotent on the client's ``Idempotency-Key``: a retried or double-clicked submit returns the
+    order already opened for that key instead of opening a second one, and the same key is sent to
+    PayPal as PayPal-Request-Id so a lost response cannot leave a duplicate order behind either.
+    Without a key the request is treated as new (nothing to replay against).
+    """
+    if idempotency_key is not None and (not idempotency_key.strip() or len(idempotency_key) > CREATE_IDEMPOTENCY_MAX):
+        raise HTTPException(UNPROCESSABLE, f"Idempotency-Key must be 1-{CREATE_IDEMPOTENCY_MAX} characters")
+    project = _project_or_404(store, body.project_id)
+    cart = _cart_or_422(project, body)
+    if not cart.lines:
+        raise HTTPException(UNPROCESSABLE, "cart is empty; nothing to pay for")
+
+    # The whole read-create-store sequence is serialised, so two concurrent identical submits
+    # cannot both miss the replay cache and both reach PayPal.
+    with _create_lock:
+        if idempotency_key is not None:
+            previous = request_orders.get(idempotency_key)
+            if previous is not None:
+                log.info("paypal create order replayed: key=%s paypal_id=%s", idempotency_key, previous.paypal_order_id)
+                return _replay(previous)
+        our_id = f"ord_{secrets.token_hex(6)}"
+        request_id = f"create-{our_id}"
+        try:
+            created = paypal.create_order(cart, custom_id=our_id, request_id=request_id)
+        except (PayPalError, PayPalUnavailable) as exc:
+            raise _paypal_http_error(exc, "create order") from None
+        paypal_id, paypal_status, approve = created.get("id"), created.get("status"), approve_url(created)
+        if not isinstance(paypal_id, str) or paypal_status not in PAYPAL_CREATED_STATUSES or approve is None:
+            log.warning("paypal create order: unexpected response status=%s", paypal_status)
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, "PayPal create order returned an unexpected response")
+        record = Order(
+            id=our_id,
+            paypal_order_id=paypal_id,
+            paypal_capture_id=None,
+            project_id=cart.project_id,
+            status="created",
+            fulfilment="simulated",
+            total=cart.subtotal,
+            currency=cart.currency,
+            lines=cart.lines,
+            approve_url=approve,
+            paypal_status=paypal_status,
+        )
+        orders[paypal_id] = record
+        if idempotency_key is not None:
+            request_orders[idempotency_key] = record
+    log.info("paypal order created: paypal_id=%s order=%s total=%s %s", paypal_id, our_id, cart.subtotal, cart.currency)
+    return _order_response(paypal_id, paypal_status, approve, record)
 
 
 @router.get(
@@ -455,6 +505,7 @@ def create_app(cors_origins: list[str] | None = None, fixtures: Path | None = No
     )
     app.state.store = FixtureStore.from_dir(fixtures or fixtures_dir())
     app.state.orders = {}
+    app.state.request_orders = {}  # Idempotency-Key -> order; memory only, like orders
     app.state.drafts = {}  # recommendation id -> draft; memory only, never mixed into the store
     cache_file = prices_path()
     cache = PriceCache.load(cache_file) if cache_file is not None else PriceCache()

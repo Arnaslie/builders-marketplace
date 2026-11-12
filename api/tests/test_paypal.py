@@ -94,8 +94,8 @@ def test_token_request_uses_basic_auth_and_client_credentials() -> None:
 def test_orders_calls_reuse_one_token() -> None:
     fake = FakePayPal()
     paypal = fake.client()
-    paypal.create_order(chair_cart(), custom_id="ord_1")
-    paypal.create_order(chair_cart(), custom_id="ord_2")
+    paypal.create_order(chair_cart(), custom_id="ord_1", request_id="create-ord_1")
+    paypal.create_order(chair_cart(), custom_id="ord_2", request_id="create-ord_2")
     assert fake.token_calls == 1
     assert all(r.headers["Authorization"].startswith("Bearer ") for r in fake.calls("create"))
 
@@ -105,7 +105,7 @@ def test_revoked_token_is_refreshed_once_and_retried() -> None:
     paypal = fake.client()
     paypal.access_token()
     fake.revoke_tokens()
-    created = paypal.create_order(chair_cart(), custom_id="ord_1")
+    created = paypal.create_order(chair_cart(), custom_id="ord_1", request_id="create-ord_1")
     assert created["status"] == "CREATED"
     assert fake.token_calls == 2
     assert len(fake.calls("create")) == 2
@@ -126,7 +126,7 @@ def test_bad_credentials_raise_paypal_error_without_secret() -> None:
 def test_create_order_body_matches_server_cart() -> None:
     fake = FakePayPal()
     cart = chair_cart(budget="200.00")  # includes a swap, so unit prices differ from the defaults
-    fake.client().create_order(cart, custom_id="ord_abc")
+    fake.client().create_order(cart, custom_id="ord_abc", request_id="create-ord_abc")
     (request,) = fake.calls("create")
     body = json.loads(request.content)
     assert request.headers["Prefer"] == "return=representation"
@@ -146,7 +146,7 @@ def test_create_order_body_matches_server_cart() -> None:
 def test_capture_sends_request_id_and_rejects_bad_ids() -> None:
     fake = FakePayPal()
     paypal = fake.client()
-    created = paypal.create_order(chair_cart(), custom_id="ord_1")
+    created = paypal.create_order(chair_cart(), custom_id="ord_1", request_id="create-ord_1")
     result = paypal.capture_order(created["id"], request_id="capture-ord_1")
     assert fake.calls("capture")[0].headers["PayPal-Request-Id"] == "capture-ord_1"
     assert first_capture(result)["status"] == "COMPLETED"
@@ -160,7 +160,7 @@ def test_error_body_is_parsed_into_codes() -> None:
     fake = FakePayPal()
     fake.fail_next["create"] = (422, "UNPROCESSABLE_ENTITY", "ITEM_TOTAL_MISMATCH")
     with pytest.raises(PayPalError) as info:
-        fake.client().create_order(chair_cart(), custom_id="ord_1")
+        fake.client().create_order(chair_cart(), custom_id="ord_1", request_id="create-ord_1")
     assert (info.value.status_code, info.value.name, info.value.issue, info.value.debug_id) == (
         422, "UNPROCESSABLE_ENTITY", "ITEM_TOTAL_MISMATCH", "dbg0001",
     )

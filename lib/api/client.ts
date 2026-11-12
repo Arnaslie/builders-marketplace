@@ -229,10 +229,10 @@ export class ApiError extends Error {
   }
 }
 
-async function postJson<T>(path: string, body?: unknown): Promise<T> {
+async function postJson<T>(path: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
   const res = await apiFetch(path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...headers },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) throw await apiError(res);
@@ -270,8 +270,10 @@ export async function priceCart(request: CartRequest): Promise<Cart> {
 }
 
 // The server rebuilds the cart from the same request and creates the PayPal order for its total.
-export async function createCheckoutOrder(request: CartRequest): Promise<PayPalOrder> {
-  return postJson<PayPalOrder>("/checkout/orders", request);
+// idempotencyKey must be stable for one checkout attempt: a retried or double-clicked submit then
+// returns the order already opened for it instead of opening a second payable one.
+export async function createCheckoutOrder(request: CartRequest, idempotencyKey: string): Promise<PayPalOrder> {
+  return postJson<PayPalOrder>("/checkout/orders", request, { "Idempotency-Key": idempotencyKey });
 }
 
 export function captureCheckoutOrder(paypalOrderId: string): Promise<Order> {

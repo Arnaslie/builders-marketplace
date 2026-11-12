@@ -79,6 +79,9 @@ export function PayPalCheckout({ request }: { request: CartRequest }) {
     let cancelled = false;
     let buttons: ButtonsInstance | null = null;
     const body = JSON.parse(requestKey) as CartRequest;
+    // One key per checkout attempt: PayPal can call createOrder again (a retry, a re-opened
+    // popup) and every call must land on the same order, never a second payable one.
+    let idempotencyKey: string | null = null;
 
     (async () => {
       try {
@@ -96,8 +99,9 @@ export function PayPalCheckout({ request }: { request: CartRequest }) {
           style: { layout: "vertical", color: "gold", shape: "rect", label: "paypal" },
           async createOrder() {
             setMessage(null);
+            idempotencyKey ??= crypto.randomUUID();
             try {
-              return (await createCheckoutOrder(body)).id;
+              return (await createCheckoutOrder(body, idempotencyKey)).id;
             } catch (error) {
               setMessage(`Could not start PayPal checkout: ${errorText(error)}`);
               throw error;

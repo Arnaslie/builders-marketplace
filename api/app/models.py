@@ -253,6 +253,9 @@ class Order(ContractModel):
     total: Price
     currency: Currency
     lines: list[CartLine]
+    # Kept so an idempotent replay can hand back the same approve link without calling PayPal again.
+    approve_url: str | None = None
+    paypal_status: str | None = None
 
 
 class CheckoutConfig(ContractModel):

@@ -38,6 +38,7 @@ class FakePayPal:
         self.requests: list[httpx.Request] = []
         self.orders: dict[str, dict[str, Any]] = {}
         self.capture_replies: dict[str, dict[str, Any]] = {}  # PayPal-Request-Id -> stored reply
+        self.create_replies: dict[str, dict[str, Any]] = {}  # PayPal-Request-Id -> stored order
         self.tokens: set[str] = set()
         self.token_calls = 0
         self.expires_in = 32400
@@ -95,6 +96,10 @@ class FakePayPal:
         return httpx.Response(200, json={"access_token": token, "token_type": "Bearer", "expires_in": self.expires_in})
 
     def _create(self, request: httpx.Request) -> httpx.Response:
+        request_id = request.headers.get("PayPal-Request-Id")
+        if request_id and request_id in self.create_replies:
+            # PayPal's documented replay: the same request id returns the order it already made.
+            return httpx.Response(201, json=self.create_replies[request_id])
         body = json.loads(request.content)
         unit = body["purchase_units"][0]
         amount = unit["amount"]
@@ -118,6 +123,8 @@ class FakePayPal:
             ],
         }
         self.orders[paypal_id] = order
+        if request_id:
+            self.create_replies[request_id] = order
         if self.approve_on_create:
             self.approved.add(paypal_id)
         return httpx.Response(201, json=order)

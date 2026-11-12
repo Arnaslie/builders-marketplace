@@ -64,7 +64,7 @@ describe("read-only API calls while the API wakes up", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { createCheckoutOrder } = await loadClient();
 
-    await expect(createCheckoutOrder({ projectId: "p1" } as never)).rejects.toThrow("HTTP 503");
+    await expect(createCheckoutOrder({ projectId: "p1" } as never, "key")).rejects.toThrow("HTTP 503");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -153,7 +153,7 @@ describe("read-only API calls while the API wakes up", () => {
       vi.stubGlobal("fetch", fetchMock);
       const { createCheckoutOrder } = await loadClient();
 
-      await expect(createCheckoutOrder({ projectId: "p1" } as never)).rejects.toThrow("HTTP 429");
+      await expect(createCheckoutOrder({ projectId: "p1" } as never, "key")).rejects.toThrow("HTTP 429");
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
@@ -233,12 +233,23 @@ describe("project listings", () => {
 
     await expect(buildCart(request)).resolves.toEqual(cart);
     await expect(priceCart(request)).resolves.toEqual(cart);
-    await expect(createCheckoutOrder(request)).resolves.toEqual(cart);
+    await expect(createCheckoutOrder(request, "key-1")).resolves.toEqual(cart);
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       "https://api.test/agent/build-cart",
       "https://api.test/cart",
       "https://api.test/checkout/orders",
     ]);
+  });
+
+  it("createCheckoutOrder sends the idempotency key so a retried submit cannot open a second order", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => json(201, { id: "ord_1" }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { createCheckoutOrder } = await loadClient();
+
+    await createCheckoutOrder({ projectId: "proj-chair", owned: [] }, "attempt-abc");
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(init.headers["Idempotency-Key"]).toBe("attempt-abc");
   });
 });
 

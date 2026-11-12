@@ -187,8 +187,12 @@ class PayPalClient:
 
     # --- Orders v2 --------------------------------------------------------------------------
 
-    def create_order(self, cart: Cart, custom_id: str) -> dict[str, Any]:
-        return self._call("POST", "/v2/checkout/orders", json=order_request(cart, custom_id))
+    def create_order(self, cart: Cart, custom_id: str, request_id: str) -> dict[str, Any]:
+        """Create a PayPal order. ``request_id`` goes in PayPal-Request-Id: resending an identical
+        create returns PayPal's first order instead of opening a second one for the same cart."""
+        return self._call(
+            "POST", "/v2/checkout/orders", json=order_request(cart, custom_id), headers={"PayPal-Request-Id": request_id}
+        )
 
     def capture_order(self, order_id: str, request_id: str) -> dict[str, Any]:
         """Capture an approved order. ``request_id`` goes in PayPal-Request-Id: reuse the same value

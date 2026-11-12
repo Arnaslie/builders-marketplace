@@ -297,17 +297,35 @@
           "checkout"
         ],
         "summary": "Create Checkout Order",
-        "description": "Create a PayPal order for the cart the server builds from this request.\n\nThe client sends the same input as POST /cart, not prices: the server recomputes the cart\n(re-checking any swaps), so a tampered browser cannot set its own total.",
+        "description": "Create a PayPal order for the cart the server builds from this request.\n\nThe client sends the same input as POST /cart, not prices: the server recomputes the cart\n(re-checking any swaps), so a tampered browser cannot set its own total.\n\nIdempotent on the client's ``Idempotency-Key``: a retried or double-clicked submit returns the\norder already opened for that key instead of opening a second one, and the same key is sent to\nPayPal as PayPal-Request-Id so a lost response cannot leave a duplicate order behind either.\nWithout a key the request is treated as new (nothing to replay against).",
         "operationId": "createCheckoutOrder",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CartRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -324,7 +342,7 @@
             "description": "Not found"
           },
           "422": {
-            "description": "Invalid body, unknown owned line id, invalid swap, or empty cart"
+            "description": "Invalid body, unknown owned line id, invalid swap, empty cart, or bad Idempotency-Key"
           },
           "502": {
             "description": "PayPal rejected the request or did not respond; no order was stored"
@@ -1149,6 +1167,28 @@
             },
             "type": "array",
             "title": "Lines"
+          },
+          "approveUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approveurl"
+          },
+          "paypalStatus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paypalstatus"
           }
         },
         "additionalProperties": false,
