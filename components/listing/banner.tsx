@@ -3,7 +3,7 @@ import { SealMark } from "../seal";
 // A 236x40 "publication banner", after the two Factbook banners on the 1994 CIA page.
 // "olive" copies the textured brown World Factbook banner (small white lettering left, gold italic
 // title and a big white number right); "ivory" copies the cream Factbook on Intelligence banner
-// (bold black centred lettering). Rows alternate between them. It is decoration: the project title
+// (bold black centred lettering). The index renders every row in ivory. It is decoration: the project title
 // follows it as real link text, so the banner is hidden from screen readers.
 type Props = { number: number; variant: "olive" | "ivory" };
 

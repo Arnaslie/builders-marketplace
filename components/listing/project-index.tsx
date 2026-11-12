@@ -15,7 +15,7 @@ export function ProjectIndex({ projects, offset }: ListingViewProps) {
         return (
           <li key={project.id}>
             <Link href={`/projects/${project.slug}`} className="index-link">
-              <Banner number={number} variant={number % 2 === 1 ? "olive" : "ivory"} />{" "}
+              <Banner number={number} variant="ivory" />{" "}
               <span className="index-title">{project.title}</span>
             </Link>
             <p className="index-summary">{project.summary}</p>
