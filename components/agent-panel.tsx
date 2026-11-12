@@ -11,7 +11,7 @@ import Link from "next/link";
 import { useId, useState, type FormEvent } from "react";
 import type { Cart, MaterialLine, Swap } from "../lib/api/client";
 import { requestCart, swapSentence, swappedLineIds } from "../lib/agent-swaps";
-import { isMockProject } from "../lib/mock/ids";
+
 import { formatCents, formatMoney, toCents } from "../lib/money";
 
 type Props = {
@@ -30,7 +30,7 @@ export function AgentPanel({ projectId, slug, lines, currency, owned, onSwapsCha
   const [error, setError] = useState<string | null>(null);
   // The cart together with the inputs that produced it, so "Go to the cart" links to exactly this
   // cart even if the grid is edited afterwards.
-  const [result, setResult] = useState<{ cart: Cart; href: string | null } | null>(null);
+  const [result, setResult] = useState<{ cart: Cart; href: string } | null>(null);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,8 +42,7 @@ export function AgentPanel({ projectId, slug, lines, currency, owned, onSwapsCha
     const outcome = await requestCart({ projectId, slug, lineIds: lines.map((line) => line.id), owned, budgetText: budget });
     setBusy(false);
     if (outcome.ok) {
-      // A sample project is priced for the agent but has no cart page or checkout, so no pay link.
-      setResult({ cart: outcome.cart, href: isMockProject(projectId) ? null : outcome.href });
+      setResult({ cart: outcome.cart, href: outcome.href });
       onSwapsChange(swappedLineIds(outcome.cart));
       onSwapDetails?.(outcome.cart.swaps);
     } else {
@@ -74,7 +73,7 @@ type ViewProps = {
   lineCount: number;
   busy: boolean;
   error: string | null;
-  result: { cart: Cart; href: string | null } | null;
+  result: { cart: Cart; href: string } | null;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
@@ -127,7 +126,7 @@ export function AgentPanelView({ currency, budget, onBudgetChange, ownedCount, l
   );
 }
 
-export function AgentCart({ cart, href }: { cart: Cart; href: string | null }) {
+export function AgentCart({ cart, href }: { cart: Cart; href: string }) {
   const agentUsed = cart.agentUsed === true;
   const overBy = cart.budget !== null && !cart.withinBudget ? toCents(cart.subtotal) - toCents(cart.budget) : 0;
   let status: string;
@@ -194,11 +193,9 @@ export function AgentCart({ cart, href }: { cart: Cart; href: string | null }) {
         </>
       )}
 
-      {href !== null && (
-        <p>
-          <Link href={href}>Go to the cart and pay with PayPal</Link>
-        </p>
-      )}
+      <p>
+        <Link href={href}>Go to the cart and pay with PayPal</Link>
+      </p>
     </div>
   );
 }

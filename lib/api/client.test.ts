@@ -4,11 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 async function loadClient() {
   vi.resetModules();
   vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.test");
-  const client = await import("./client");
-  // getProject loads the mock catalog before its first fetch. Load it now so the fake-timer
-  // tests below do not have to wait for that import (a mock slug never calls fetch).
-  await client.getProject("floating-wall-shelf");
-  return client;
+  return import("./client");
 }
 
 const summaries = [{ id: "p1", slug: "from-api", title: "From API" }];
@@ -163,10 +159,10 @@ describe("read-only API calls while the API wakes up", () => {
   });
 });
 
-describe("sample mock listings", () => {
+describe("project listings", () => {
   const apiList = [
     { id: "proj-chair", slug: "simple-wooden-chair", title: "Chair" },
-    { id: "mock-floating-wall-shelf", slug: "floating-wall-shelf", title: "API copy of a mock" },
+    { id: "proj-floating-wall-shelf", slug: "floating-wall-shelf", title: "Floating Wall Shelf" },
   ];
 
   beforeEach(() => {
@@ -180,19 +176,14 @@ describe("sample mock listings", () => {
     vi.restoreAllMocks();
   });
 
-  it("healthy API: real projects first, then mocks, with the API entry winning a duplicate", async () => {
+  it("healthy API: the API's list, exactly", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(json(200, apiList)));
     const { listProjects } = await loadClient();
 
-    const list = await listProjects();
-
-    expect(list.slice(0, 2)).toEqual(apiList);
-    expect(list).toHaveLength(2 + 46); // 47 mocks, one of them taken by the API's copy
-    expect(list.filter((p) => p.slug === "floating-wall-shelf")).toHaveLength(1);
-    expect(list.slice(2).every((p) => p.id.startsWith("mock-") && p.lineCount > 0)).toBe(true);
+    expect(await listProjects()).toEqual(apiList);
   });
 
-  it("API down: the same set of listings, with fixtures standing in for the real projects", async () => {
+  it("API down: all 50 fixtures stand in, none with the old mock- prefix", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
     const { listProjects } = await loadClient();
 
@@ -201,57 +192,53 @@ describe("sample mock listings", () => {
     const list = await pending;
 
     expect(list).toHaveLength(50);
-    expect(list.slice(3).every((p) => p.id.startsWith("mock-"))).toBe(true);
-    expect(list.slice(0, 3).every((p) => !p.id.startsWith("mock-"))).toBe(true);
+    expect(list.some((p) => p.id.startsWith("mock-"))).toBe(false);
+    expect(list.every((p) => p.lineCount >= 10)).toBe(true);
   });
 
-  it("no API: fixtures plus mocks", async () => {
+  it("no API: the 50 fixtures", async () => {
     vi.resetModules();
     vi.stubEnv("NEXT_PUBLIC_API_URL", "");
     const { listProjects } = await import("./client");
     expect(await listProjects()).toHaveLength(50);
   });
 
-  it("a mock slug resolves without calling the API", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-    const { getProject } = await loadClient();
-
-    const project = await getProject("floating-wall-shelf");
-
-    expect(project?.id).toBe("mock-floating-wall-shelf");
-    expect(project?.materials.length).toBeGreaterThan(0);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("an unknown slug is still null, and a real slug still calls the API", async () => {
+  it("an unknown slug is null, and every slug asks the API", async () => {
     const chair = { id: "proj-chair", slug: "simple-wooden-chair" };
-    const fetchMock = vi.fn().mockResolvedValueOnce(json(404)).mockResolvedValueOnce(json(200, chair));
+    const shelf = { id: "proj-floating-wall-shelf", slug: "floating-wall-shelf" };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json(404))
+      .mockResolvedValueOnce(json(200, chair))
+      .mockResolvedValueOnce(json(200, shelf));
     vi.stubGlobal("fetch", fetchMock);
     const { getProject } = await loadClient();
 
     expect(await getProject("nope")).toBeNull();
     expect(await getProject("simple-wooden-chair")).toEqual(chair);
+    expect(await getProject("floating-wall-shelf")).toEqual(shelf);
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       "https://api.test/projects/nope",
       "https://api.test/projects/simple-wooden-chair",
+      "https://api.test/projects/floating-wall-shelf",
     ]);
   });
 
-  it("lets the agent price a mock project but never sends it to the cart or PayPal endpoints", async () => {
-    const cart = { projectId: "mock-floating-wall-shelf", subtotal: "10.00" };
-    const fetchMock = vi.fn().mockResolvedValue(json(200, cart));
+  it("a former sample goes to the agent, cart and PayPal endpoints like any project", async () => {
+    const cart = { projectId: "proj-floating-wall-shelf", subtotal: "10.00" };
+    const fetchMock = vi.fn().mockImplementation(async () => json(200, cart)); // a fresh body per call
     vi.stubGlobal("fetch", fetchMock);
     const { buildCart, priceCart, createCheckoutOrder } = await loadClient();
-    const request = { projectId: "mock-floating-wall-shelf", owned: [] };
+    const request = { projectId: "proj-floating-wall-shelf", owned: [] };
 
     await expect(buildCart(request)).resolves.toEqual(cart);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toBe("https://api.test/agent/build-cart");
-
-    await expect(priceCart(request)).rejects.toThrow(/no checkout/);
-    await expect(createCheckoutOrder(request)).rejects.toThrow(/no checkout/);
-    expect(fetchMock).toHaveBeenCalledTimes(1); // still only the agent call
+    await expect(priceCart(request)).resolves.toEqual(cart);
+    await expect(createCheckoutOrder(request)).resolves.toEqual(cart);
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "https://api.test/agent/build-cart",
+      "https://api.test/cart",
+      "https://api.test/checkout/orders",
+    ]);
   });
 });
 

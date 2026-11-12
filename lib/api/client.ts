@@ -2,15 +2,10 @@
 //
 // NEXT_PUBLIC_API_URL unset -> read contract/fixtures/*.json (same shapes the API returns).
 // NEXT_PUBLIC_API_URL set   -> call the FastAPI service.
-// Either way the SAMPLE mock listings (lib/mock/projects.ts) are added after the real projects, so
-// the gallery looks the same whether the API is awake or asleep. Mocks are served here and never
-// sent to the API for reading. The agent may price one (the API holds contract/samples.json); a mock has
-// no cart page or checkout (see refuseSample).
 // Types come from lib/api/schema.d.ts, generated from contract/openapi.json (npm run gen:types).
 // Money fields are strings in the contract and stay strings here; format them at display time
 // (lib/money.ts).
 import { toCents } from "../money";
-import { SAMPLE_CART_NOTE, isMockProject } from "../mock/ids";
 import type { components } from "./schema";
 
 export type Project = components["schemas"]["Project"];
@@ -38,29 +33,60 @@ export const usingApi = API_URL !== undefined;
 // (order matches the API: files sorted by name).
 async function loadFixtures(): Promise<Project[]> {
   const files = await Promise.all([
+    import("../../contract/fixtures/adirondack-chair.json"),
+    import("../../contract/fixtures/bat-house.json"),
+    import("../../contract/fixtures/birdhouse-kit-for-two.json"),
+    import("../../contract/fixtures/brick-barbecue.json"),
+    import("../../contract/fixtures/canvas-and-leather-tote.json"),
+    import("../../contract/fixtures/cedar-raised-garden-bed.json"),
     import("../../contract/fixtures/chair.json"),
+    import("../../contract/fixtures/chicken-coop-for-four.json"),
+    import("../../contract/fixtures/cob-pizza-oven.json"),
+    import("../../contract/fixtures/compost-bin-with-lid.json"),
+    import("../../contract/fixtures/concrete-kitchen-countertop.json"),
+    import("../../contract/fixtures/concrete-planter-trio.json"),
+    import("../../contract/fixtures/concrete-side-table.json"),
+    import("../../contract/fixtures/doorway-pull-up-bar-rig.json"),
+    import("../../contract/fixtures/edison-pendant-lamp.json"),
+    import("../../contract/fixtures/end-grain-cutting-board.json"),
+    import("../../contract/fixtures/flagstone-garden-path.json"),
+    import("../../contract/fixtures/floating-nightstand.json"),
+    import("../../contract/fixtures/floating-wall-shelf.json"),
+    import("../../contract/fixtures/forged-bottle-opener.json"),
+    import("../../contract/fixtures/garage-pegboard-wall.json"),
+    import("../../contract/fixtures/greenhouse-from-old-windows.json"),
+    import("../../contract/fixtures/hand-forged-wall-hooks.json"),
+    import("../../contract/fixtures/hand-stitched-leather-wallet.json"),
+    import("../../contract/fixtures/headboard-with-reading-lights.json"),
+    import("../../contract/fixtures/kids-step-stool.json"),
     import("../../contract/fixtures/knife.json"),
+    import("../../contract/fixtures/leather-tool-roll.json"),
+    import("../../contract/fixtures/live-edge-coffee-table.json"),
+    import("../../contract/fixtures/pallet-wall-planter.json"),
+    import("../../contract/fixtures/parallettes-pair.json"),
+    import("../../contract/fixtures/pipe-desk-lamp.json"),
+    import("../../contract/fixtures/platform-bed-frame.json"),
+    import("../../contract/fixtures/plyometric-jump-box.json"),
+    import("../../contract/fixtures/plywood-bookcase.json"),
+    import("../../contract/fixtures/rain-barrel-collection-system.json"),
+    import("../../contract/fixtures/rocket-stove.json"),
+    import("../../contract/fixtures/rolling-welding-cart.json"),
+    import("../../contract/fixtures/sandbag-training-set.json"),
+    import("../../contract/fixtures/shoe-rack-bench.json"),
+    import("../../contract/fixtures/soil-moisture-monitor.json"),
+    import("../../contract/fixtures/solar-shed-lighting-kit.json"),
     import("../../contract/fixtures/squat-rack.json"),
+    import("../../contract/fixtures/steel-coat-rack.json"),
+    import("../../contract/fixtures/steel-pipe-bookshelf.json"),
+    import("../../contract/fixtures/steel-plant-stand.json"),
+    import("../../contract/fixtures/weight-plate-tree.json"),
+    import("../../contract/fixtures/welded-fire-pit-ring.json"),
+    import("../../contract/fixtures/wine-rack-wall-unit.json"),
+    import("../../contract/fixtures/workbench-with-front-vise.json"),
   ]);
   // The JSON is validated against the Project model by the API's own tests; TypeScript only
   // sees string literals here, so we assert the contract type.
   return files.map((file) => file.default as unknown as Project);
-}
-
-// Mock listings pad the gallery to five pages until the real catalog grows. Imported lazily for
-// the same reason as the fixtures: client components that import this module (recommend-form)
-// must not bundle the mock catalog.
-async function loadMocks(): Promise<Project[]> {
-  return (await import("../mock/projects")).mockProjects;
-}
-
-// Real summaries first, then the mocks. A mock whose id or slug a real project already uses is
-// dropped, so the real project wins.
-async function withMocks(real: ProjectSummary[]): Promise<ProjectSummary[]> {
-  const ids = new Set(real.map((p) => p.id));
-  const slugs = new Set(real.map((p) => p.slug));
-  const mocks = (await loadMocks()).filter((p) => !ids.has(p.id) && !slugs.has(p.slug));
-  return [...real, ...mocks.map(summarise)];
 }
 
 // Mirrors api/app/main.py list_projects: summary plus lineCount and estimatedTotal
@@ -145,23 +171,20 @@ class ApiUnavailableStatus extends Error {
 }
 
 export async function listProjects(): Promise<ProjectSummary[]> {
-  if (!usingApi) return withMocks((await loadFixtures()).map(summarise));
+  if (!usingApi) return (await loadFixtures()).map(summarise);
   try {
     const res = await apiFetch("/projects");
     if (!res.ok) throw new ApiUnavailableStatus(res.status, `GET /projects failed: HTTP ${res.status}`);
-    return withMocks((await res.json()) as ProjectSummary[]);
+    return (await res.json()) as ProjectSummary[];
   } catch (err) {
     if (!isUnavailable(err)) throw err;
     console.warn("API unavailable for GET /projects, serving fixtures:", err);
-    return withMocks((await loadFixtures()).map(summarise));
+    return (await loadFixtures()).map(summarise);
   }
 }
 
-// Returns null for an unknown slug so the page can call notFound(). A mock slug is answered
-// here without calling the API, so a sample page never waits on a sleeping server.
+// Returns null for an unknown slug so the page can call notFound().
 export async function getProject(slug: string): Promise<Project | null> {
-  const mock = (await loadMocks()).find((p) => p.slug === slug);
-  if (mock) return mock;
   if (!usingApi) return (await loadFixtures()).find((p) => p.slug === slug) ?? null;
   try {
     const res = await apiFetch(`/projects/${encodeURIComponent(slug)}`);
@@ -228,13 +251,6 @@ async function apiError(res: Response): Promise<ApiError> {
   return new ApiError(res.status, detail);
 }
 
-// A mock project has placeholder prices and must never be priced for a cart or start a PayPal order.
-// The agent (buildCart) may price one; the cart page and checkout calls below refuse it. The pages
-// already skip the cart for mocks; this is the backstop for any caller that does not.
-function refuseSample(projectId: string): void {
-  if (isMockProject(projectId)) throw new ApiError(422, SAMPLE_CART_NOTE);
-}
-
 export async function buildCart(request: BuildCartRequest): Promise<Cart> {
   return postJson<Cart>("/agent/build-cart", request);
 }
@@ -250,13 +266,11 @@ export async function getCheckoutConfig(): Promise<CheckoutConfig | null> {
 // POST /cart: price a cart with no LLM call. With request.swaps, exactly those swaps (re-checked
 // by the server); without it, the deterministic budget rules. Checkout charges this same cart.
 export async function priceCart(request: CartRequest): Promise<Cart> {
-  refuseSample(request.projectId);
   return postJson<Cart>("/cart", request);
 }
 
 // The server rebuilds the cart from the same request and creates the PayPal order for its total.
 export async function createCheckoutOrder(request: CartRequest): Promise<PayPalOrder> {
-  refuseSample(request.projectId);
   return postJson<PayPalOrder>("/checkout/orders", request);
 }
 

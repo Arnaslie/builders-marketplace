@@ -71,11 +71,17 @@ def run(out, client: FakeClient, *args: str) -> int:
     return price_cache.main([*args, "--out", str(out)], make_client=lambda: client)
 
 
+# The script now defaults to every fixture; these tests pin their numbers to the three flagships.
+FLAGSHIPS = ("proj-chair", "proj-knife", "proj-squat-rack")
+FLAGSHIP_ARGS = [arg for pid in FLAGSHIPS for arg in ("--project", pid)]
+FLAGSHIP_LINE_PREFIXES = ("chair-", "knife-", "rack-")
+
+
 def test_dry_run_calls_nothing_and_writes_nothing(out, capsys) -> None:
     def no_client():
         raise AssertionError("dry run must not build a client (no key needed)")
 
-    assert price_cache.main(["--dry-run", "--out", str(out)], make_client=no_client) == 0
+    assert price_cache.main(["--dry-run", *FLAGSHIP_ARGS, "--out", str(out)], make_client=no_client) == 0
     assert not out.exists()
     printed = capsys.readouterr().out
     # 46 lines, 40 distinct phrases (drill x3, safety glasses x3, tape measure x2, sandpaper x2).
@@ -86,8 +92,10 @@ def test_dry_run_calls_nothing_and_writes_nothing(out, capsys) -> None:
 def test_prices_every_flagship_line_once_per_unique_query(out) -> None:
     queries = json.loads((price_cache.DEFAULT_QUERIES).read_text())
     queries.pop("_about")
+    queries = {k: v for k, v in queries.items() if k.startswith(FLAGSHIP_LINE_PREFIXES)}
     client = FakeClient()
-    assert run(out, client) == 0
+    # Guard off: the fake prices every line at 9.99, which is >4x below the $99 drills.
+    assert run(out, client, *FLAGSHIP_ARGS, "--max-ratio", "0") == 0
 
     assert len(client.queries) == len(set(queries.values()))  # shared phrases cost one call
     cache = PriceCache.load(out)
@@ -109,11 +117,11 @@ def test_prices_every_flagship_line_once_per_unique_query(out) -> None:
 
 
 def test_rerun_spends_nothing_and_refresh_spends_again(out) -> None:
-    run(out, FakeClient())
+    run(out, FakeClient(), *FLAGSHIP_ARGS)
     before = out.read_text()
 
     again = FakeClient()
-    assert run(out, again) == 0
+    assert run(out, again, *FLAGSHIP_ARGS) == 0
     assert again.queries == []  # priced lines and misses are both skipped
     assert out.read_text() == before
 
@@ -127,6 +135,54 @@ def test_project_filter(out) -> None:
     run(out, client, "--project", "proj-chair")
     assert set(PriceCache.load(out).projects) == {"proj-chair"}
     assert len(client.queries) == 12
+
+
+def test_default_plans_every_fixture_project(out, capsys) -> None:
+    queries = json.loads((price_cache.DEFAULT_QUERIES).read_text())
+    queries.pop("_about")
+    assert price_cache.main(["--dry-run", "--out", str(out)], make_client=lambda: None) == 0
+    printed = capsys.readouterr().out
+    assert printed.startswith(f"{len(queries)} line(s) to price, 0 already cached, {len(set(queries.values()))} Channel3 call(s)")
+
+
+def test_unknown_project_is_refused(out, capsys) -> None:
+    client = FakeClient()
+    assert run(out, client, "--project", "proj-nope") == 2
+    assert client.queries == [] and not out.exists()
+    assert "proj-nope" in capsys.readouterr().err
+
+
+def test_far_off_match_is_a_miss_and_keeps_the_fixture_price(out, capsys) -> None:
+    # The fake answers 9.99 for everything: chair-drill (fixture 99.00) is ~0.10x, outside the 4x band;
+    # chair-pine-2x2 (fixture 3.28) is ~3.05x, inside it.
+    assert run(out, FakeClient(), "--project", "proj-chair") == 0
+    cache = PriceCache.load(out)
+    assert cache.entry("proj-chair", "chair-drill") is None
+    assert "suspect match" in cache.miss("proj-chair", "chair-drill").reason
+    assert cache.entry("proj-chair", "chair-pine-2x2").price == "9.99"
+    assert "  suspect chair-drill:" in capsys.readouterr().out
+
+
+def test_reject_file_turns_reviewed_matches_into_misses_without_calls(out, tmp_path) -> None:
+    run(out, FakeClient(), "--project", "proj-chair")
+    assert PriceCache.load(out).entry("proj-chair", "chair-pine-2x2") is not None
+    rejects = tmp_path / "rejects.json"
+    rejects.write_text(json.dumps({"chair-pine-2x2": "a lumber crayon, not a board"}))
+
+    def no_client():
+        raise AssertionError("rejecting must not build a client")
+
+    assert price_cache.main(["--reject-file", str(rejects), "--out", str(out)], make_client=no_client) == 0
+    cache = PriceCache.load(out)
+    assert cache.entry("proj-chair", "chair-pine-2x2") is None
+    assert cache.miss("proj-chair", "chair-pine-2x2").reason == "rejected by review: a lumber crayon, not a board"
+
+
+def test_reject_file_refuses_unknown_lines(out, tmp_path) -> None:
+    rejects = tmp_path / "rejects.json"
+    rejects.write_text(json.dumps({"no-such-line": "x"}))
+    assert price_cache.main(["--reject-file", str(rejects), "--out", str(out)], make_client=lambda: None) == 2
+    assert not out.exists()
 
 
 def test_max_calls_refuses_before_spending(out) -> None:
