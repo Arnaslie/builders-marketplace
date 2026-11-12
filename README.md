@@ -50,7 +50,7 @@ in the sandbox buyer's PayPal activity.
 
 | Role | Email | Password |
 |------|-------|----------|
-| Sandbox buyer (public PayPal sandbox account, judges only, no real money) | `PASTE_JUDGE_SANDBOX_BUYER_EMAIL` | `PASTE_JUDGE_SANDBOX_BUYER_PASSWORD` |
+| Sandbox buyer (public PayPal sandbox account, judges only, no real money) | `sb-udxlx53723459@personal.example.com` | `passw0rd123` |
 
 About these credentials: this is a dedicated sandbox buyer created only for judging, not an account the
 team develops or tests with. Anyone who reads this README can log in as it, so it holds nothing we
