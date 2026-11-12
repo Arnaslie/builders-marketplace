@@ -92,10 +92,22 @@ pre {
   line-height: 0;
 }
 
+/* The masthead seal is a square plate: white to match the page, hosting either the flat SVG
+   fallback or the three.js coin. The container keeps its box at any viewport so the canvas can
+   measure it. */
 .seal {
   display: block;
   width: 150px;
   height: 150px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.seal svg,
+.seal canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .masthead-title {
