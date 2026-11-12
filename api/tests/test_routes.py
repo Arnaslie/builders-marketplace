@@ -212,6 +212,22 @@ def test_cors_allows_frontend_origin(client: TestClient) -> None:
     assert r.headers["access-control-allow-origin"] == FRONTEND
 
 
+def test_cors_allows_the_idempotency_key_header_the_checkout_sends(client: TestClient) -> None:
+    """POST /checkout/orders sends Idempotency-Key. If CORS does not allow that header the
+    browser's preflight answers 400 and the Pay button dies before it reaches the API -- which
+    is exactly what happened on the deployed site at video time (PayPal popup went to
+    about:blank, console showed create_order_error "Failed to fetch")."""
+    r = client.options(
+        "/checkout/orders",
+        headers={"Origin": FRONTEND, "Access-Control-Request-Method": "POST",
+                 "Access-Control-Request-Headers": "content-type,idempotency-key"},
+    )
+    assert r.status_code == 200
+    assert r.headers["access-control-allow-origin"] == FRONTEND
+    allowed = [h.strip().lower() for h in r.headers["access-control-allow-headers"].split(",")]
+    assert "idempotency-key" in allowed
+
+
 def test_cors_rejects_other_origin(client: TestClient) -> None:
     r = client.get("/healthz", headers={"Origin": "https://evil.example"})
     assert "access-control-allow-origin" not in r.headers

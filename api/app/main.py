@@ -523,7 +523,12 @@ def create_app(cors_origins: list[str] | None = None, fixtures: Path | None = No
         CORSMiddleware,
         allow_origins=cors_origins if cors_origins is not None else cors_origins_from_env(),
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type"],
+        # Idempotency-Key is required here, not optional: the browser sends it on
+        # POST /checkout/orders, and a header missing from this list fails the CORS
+        # preflight (400) before the request is ever made — which took the whole
+        # PayPal button offline on the deployed site. Add every custom request
+        # header the client sends to this list.
+        allow_headers=["Content-Type", "Idempotency-Key"],
     )
     app.include_router(router)
     return app
