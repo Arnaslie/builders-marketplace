@@ -10,6 +10,7 @@ import os
 import re
 import secrets
 import threading
+from hashlib import sha256
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Any
@@ -378,7 +379,10 @@ def create_checkout_order(
                 log.info("paypal create order replayed: key=%s paypal_id=%s", idempotency_key, previous.paypal_order_id)
                 return _replay(previous)
         our_id = f"ord_{secrets.token_hex(6)}"
-        request_id = f"create-{our_id}"
+        # Derived from the CLIENT key, not from our fresh order id: if our replay map is gone (an
+        # API restart, or a response lost after PayPal already created the order) the retry sends
+        # the same PayPal-Request-Id and PayPal replays its first order instead of opening a second.
+        request_id = f"create-{sha256(idempotency_key.encode()).hexdigest()[:40]}" if idempotency_key else f"create-{our_id}"
         try:
             created = paypal.create_order(cart, custom_id=our_id, request_id=request_id)
         except (PayPalError, PayPalUnavailable) as exc:

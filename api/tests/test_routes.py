@@ -143,10 +143,30 @@ def test_create_order_replays_after_a_lost_response(client: TestClient, fake_pay
     client.app.state.request_orders.clear()
     retried = client.post("/checkout/orders", json=body, headers=headers)
     assert retried.status_code == 201
-    # PayPal-Request-Id made PayPal replay, so the caller sees the original order either way.
+    # Both submits sent the SAME PayPal-Request-Id, derived from the client key, so PayPal replayed
+    # its first order rather than opening a second one. This is the assertion that catches a
+    # request id derived from our own fresh order id.
     assert len(fake_paypal.calls("create")) == 2
     sent = [r.headers["PayPal-Request-Id"] for r in fake_paypal.calls("create")]
-    assert all(key.startswith("create-ord_") for key in sent)
+    assert sent[0] == sent[1], f"request ids differ, so PayPal would open two orders: {sent}"
+    assert retried.json()["id"] == first.json()["id"]
+
+
+def test_request_id_is_derived_from_the_key_not_our_order_id(
+    client: TestClient, fake_paypal: FakePayPal
+) -> None:
+    """The PayPal-Request-Id must not contain our order id: a restart must still replay."""
+    body = {"projectId": CHAIR_ID, "owned": CHAIR_OWNED_DEFAULT}
+    r = client.post("/checkout/orders", json=body, headers={"Idempotency-Key": "stable-key"})
+    assert r.status_code == 201
+    our_order_id = client.app.state.orders[r.json()["id"]].id
+    sent = fake_paypal.calls("create")[0].headers["PayPal-Request-Id"]
+    assert our_order_id not in sent
+    # Same key, fresh app state (a restart): the id sent to PayPal is identical.
+    other = TestClient(create_app())
+    other.app.state.paypal = fake_paypal.client()
+    other.post("/checkout/orders", json=body, headers={"Idempotency-Key": "stable-key"})
+    assert fake_paypal.calls("create")[1].headers["PayPal-Request-Id"] == sent
 
 
 def test_create_order_without_key_creates_distinct_orders(client: TestClient, fake_paypal: FakePayPal) -> None:
