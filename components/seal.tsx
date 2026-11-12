@@ -1,11 +1,27 @@
+"use client";
+
 // The site seal, drawn after the 1994 CIA server page: a navy ring with white lettering over the
 // top, a gold lower band with red lettering, a white field, and a shield with a red compass star.
 // It is an original emblem for Builders Marketplace, not a copy of any government seal.
-// Pure SVG, no external assets. `mark` is the small text-free version used inside the index banners.
+//
+// `SealMark` is the small flat SVG used inside the index banners; it never touches three.js.
+// `Seal` is the masthead emblem. It builds the emblem in three.js on the client and slowly spins
+// it around its vertical axis. The navy ring, gold band and gold outlines are real
+// `MeshStandardMaterial` meshes under an environment map, so they catch light and read metallic;
+// the lettering, hammer, shield and compass star are painted into a transparent canvas texture
+// laid over the metal. On a server render (or a browser without WebGL) a flat, white-backed SVG
+// is shown instead, so the masthead never flashes empty and crawlers still see the seal.
+
+import { useEffect, useRef } from "react";
+import * as THREE from "three";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 
 const NAVY = "#1b2a5c";
 const GOLD = "#d4a017";
 const RED = "#c8102e";
+
+const TAU = Math.PI * 2;
+const DEG = Math.PI / 180;
 
 // A 16-point compass star: points alternate between the outer and inner radius.
 function starPoints(cx: number, cy: number, outer: number, inner: number): string {
@@ -26,16 +42,12 @@ export function SealMark({ size = 30 }: { size?: number }) {
   );
 }
 
-export function Seal() {
+// Flat server/fallback render. A white 150x150 plate (matching the page background) replaces the
+// old light-grey square.
+function FlatSeal() {
   return (
-    <svg
-      className="seal"
-      viewBox="0 0 150 150"
-      role="img"
-      aria-label="Seal of the Builders Marketplace"
-    >
-      {/* The reference seal sits on its own light-grey square, visibly off-white. */}
-      <rect width="150" height="150" fill="#f0f0f0" />
+    <svg viewBox="0 0 150 150" role="img" aria-label="Seal of the Builders Marketplace">
+      <rect width="150" height="150" fill="#ffffff" />
       <defs>
         {/* Top arc, left to right over the top; glyphs grow outward from radius 60. */}
         <path id="seal-top-arc" d="M 15 75 A 60 60 0 0 1 135 75" />
@@ -67,5 +79,240 @@ export function Seal() {
       <path d="M 55 54 H 95 V 78 Q 95 100 75 110 Q 55 100 55 78 Z" fill={NAVY} stroke={GOLD} strokeWidth="1.5" />
       <polygon points={starPoints(75, 79, 17, 6)} fill={RED} stroke="#ffffff" strokeWidth="0.6" />
     </svg>
+  );
+}
+
+// The painted overlay: only the lettering, hammer, shield and compass star. Everything else stays
+// transparent so the metallic ring meshes underneath show through. Drawn in the SVG's 150-unit
+// design space, so coordinates match the mesh radii one-to-one. `mirror` flips the drawing for the
+// back face (a physical coin flipped around its vertical axis reads correctly only when its text
+// is pre-mirrored).
+function overlayTexture(edge: number, mirror: boolean): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = c.height = edge;
+  const g = c.getContext("2d")!;
+  g.scale(edge / 150, edge / 150);
+  if (mirror) {
+    g.translate(150, 0);
+    g.scale(-1, 1);
+  }
+
+  // Top lettering: white "BUILDERS" growing outward from radius 60.
+  g.fillStyle = "#ffffff";
+  g.font = '700 12px Times, "Times New Roman", serif';
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  const top = "BUILDERS";
+  for (let i = 0; i < top.length; i += 1) {
+    const a = Math.PI - ((i - (top.length - 1) / 2) / 12) * Math.PI * 0.9;
+    g.save();
+    g.translate(75 + 60 * Math.cos(a), 75 - 60 * Math.sin(a));
+    g.rotate(-a);
+    g.fillText(top[i], 0, 0);
+    g.restore();
+  }
+
+  // Bottom lettering: red "BUILDERS MARKETPLACE" growing inward from radius 67.
+  g.fillStyle = RED;
+  g.font = '700 8.5px Times, "Times New Roman", serif';
+  const bottom = "BUILDERS MARKETPLACE";
+  for (let i = 0; i < bottom.length; i += 1) {
+    const a = Math.PI + ((i - (bottom.length - 1) / 2) / 14) * Math.PI * 0.5;
+    g.save();
+    g.translate(75 + 67 * Math.cos(a), 75 - 67 * Math.sin(a));
+    g.rotate(-a);
+    g.fillText(bottom[i], 0, 0);
+    g.restore();
+  }
+
+  // Hammer head and haft, centred above the shield.
+  g.fillStyle = "#3a3a3a";
+  g.fillRect(61, 31, 28, 7);
+  g.fillStyle = "#8b5a2b";
+  g.fillRect(72, 38, 6, 14);
+
+  // Shield: navy fill, gold outline.
+  g.beginPath();
+  g.moveTo(55, 54);
+  g.lineTo(95, 54);
+  g.lineTo(95, 78);
+  g.quadraticCurveTo(95, 100, 75, 110);
+  g.quadraticCurveTo(55, 100, 55, 78);
+  g.closePath();
+  g.fillStyle = NAVY;
+  g.fill();
+  g.strokeStyle = GOLD;
+  g.lineWidth = 1.5;
+  g.stroke();
+
+  // Compass star: red fill, white outline.
+  const pts = starPoints(75, 79, 17, 6)
+    .split(" ")
+    .map((pair) => pair.split(",").map(Number) as [number, number]);
+  g.beginPath();
+  pts.forEach(([x, y], i) => (i === 0 ? g.moveTo(x, y) : g.lineTo(x, y)));
+  g.closePath();
+  g.fillStyle = RED;
+  g.fill();
+  g.strokeStyle = "#ffffff";
+  g.lineWidth = 0.6;
+  g.stroke();
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+function buildCoin(container: HTMLElement): () => void {
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setClearColor(0x000000, 0);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  const scene = new THREE.Scene();
+
+  // Camera sits on the +Z axis. At 28.5 degrees and distance 310 the frustum is 157 units tall,
+  // so the 144-unit emblem nearly fills the square viewport and spins toward the viewer around
+  // its vertical (Y) axis.
+  const camera = new THREE.PerspectiveCamera(28.5, 1, 0.1, 1000);
+  camera.position.z = 310;
+
+  // Shared resources; disposed together on unmount. The two faces reuse the same geometry and
+  // materials, so the back is a true mirror of the front, not a second copy.
+  const disposables: Array<{ dispose(): void }> = [];
+  const track = <T extends { dispose(): void }>(d: T): T => (disposables.push(d), d);
+
+  const bodyGeom = track(new THREE.CylinderGeometry(72, 72, 6, 96));
+  const ringGeom = track(new THREE.RingGeometry(52, 72, 96));
+  const discGeom = track(new THREE.CircleGeometry(52, 96));
+  const bandGeom = track(new THREE.RingGeometry(52, 70, 96, 1, 200 * DEG, 140 * DEG));
+  const outlineOuterGeom = track(new THREE.RingGeometry(71, 72.5, 96));
+  const outlineInnerGeom = track(new THREE.RingGeometry(51, 52.5, 96));
+  const overlayGeom = track(new THREE.PlaneGeometry(150, 150));
+
+  const navyMat = track(new THREE.MeshStandardMaterial({ color: NAVY, metalness: 0.55, roughness: 0.3 }));
+  const goldMat = track(new THREE.MeshStandardMaterial({ color: GOLD, metalness: 0.95, roughness: 0.18 }));
+  const whiteMat = track(new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.15, roughness: 0.4 }));
+  const overlayFront = track(overlayTexture(512, false));
+  const overlayBack = track(overlayTexture(512, true));
+  const overlayMatFront = track(
+    new THREE.MeshStandardMaterial({ color: 0xffffff, map: overlayFront, transparent: true, metalness: 0.1, roughness: 0.5 }),
+  );
+  const overlayMatBack = track(
+    new THREE.MeshStandardMaterial({ color: 0xffffff, map: overlayBack, transparent: true, metalness: 0.1, roughness: 0.5 }),
+  );
+
+  const coin = new THREE.Group();
+
+  // Solid navy body gives the coin a visible edge while it turns.
+  coin.add(new THREE.Mesh(bodyGeom, navyMat));
+
+  // One face assembly, layered back-to-front: navy ring, white field, gold 140-degree band,
+  // thin gold outlines, then the painted lettering/shield overlay on top.
+  const addFace = (side: number) => {
+    const face = new THREE.Group();
+    face.position.z = side * 3;
+    if (side < 0) face.rotation.y = Math.PI;
+    const add = (geom: THREE.BufferGeometry, mat: THREE.Material, z: number) => {
+      const m = new THREE.Mesh(geom, mat);
+      m.position.z = z;
+      face.add(m);
+    };
+    add(ringGeom, navyMat, 0);
+    add(discGeom, whiteMat, 0.15);
+    add(bandGeom, goldMat, 0.3);
+    add(outlineOuterGeom, goldMat, 0.45);
+    add(outlineInnerGeom, goldMat, 0.45);
+    add(overlayGeom, side < 0 ? overlayMatBack : overlayMatFront, 0.6);
+    coin.add(face);
+  };
+  addFace(1);
+  addFace(-1);
+
+  // Lights shape the disc; an environment map adds the reflections that make the metal read.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+  const key = new THREE.DirectionalLight(0xffffff, 2.5);
+  key.position.set(120, 180, 240);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xffffff, 1.2);
+  fill.position.set(-160, 40, 160);
+  scene.add(fill);
+
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envRT = pmrem.fromScene(new RoomEnvironment(), 0.04);
+  scene.environment = envRT.texture;
+  pmrem.dispose();
+
+  scene.add(coin);
+  container.appendChild(renderer.domElement);
+
+  let disposed = false;
+  let raf = 0;
+
+  const resize = () => {
+    const rect = container.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio, 2);
+    renderer.setSize(
+      Math.max(1, Math.round(rect.width * dpr)),
+      Math.max(1, Math.round(rect.height * dpr)),
+      false,
+    );
+    renderer.domElement.style.width = "100%";
+    renderer.domElement.style.height = "100%";
+    camera.aspect = rect.width / Math.max(1, rect.height);
+    camera.updateProjectionMatrix();
+  };
+  resize();
+
+  const animate = () => {
+    if (disposed) return;
+    // Rotate around the local Y axis at a constant rate; the emblem is built as a coin so
+    // everything turns together. The angle is mirrored to a data attribute so a browser check
+    // can prove the coin is actually turning (monotonically increasing).
+    coin.rotation.y += 0.018;
+    container.dataset.rotation = String(coin.rotation.y);
+    renderer.render(scene, camera);
+    raf = requestAnimationFrame(animate);
+  };
+  animate();
+
+  window.addEventListener("resize", resize);
+
+  return () => {
+    disposed = true;
+    cancelAnimationFrame(raf);
+    window.removeEventListener("resize", resize);
+    renderer.dispose();
+    envRT.dispose();
+    for (const d of disposables) d.dispose();
+    if (renderer.domElement.parentNode === container) container.removeChild(renderer.domElement);
+  };
+}
+
+export function Seal() {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // Leave the flat SVG in place when WebGL is unavailable; otherwise replace it with the coin.
+    const hasWebGL = (() => {
+      try {
+        const c = document.createElement("canvas");
+        return !!(c.getContext("webgl2") || c.getContext("webgl"));
+      } catch {
+        return false;
+      }
+    })();
+    if (!hasWebGL) return;
+
+    el.replaceChildren();
+    return buildCoin(el);
+  }, []);
+
+  return (
+    <div ref={ref} className="seal" role="img" aria-label="Seal of the Builders Marketplace">
+      <FlatSeal />
+    </div>
   );
 }
